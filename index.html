@@ -2802,6 +2802,42 @@ const TICK_MS = 100;
         setControlScheme("wasd");
         setPickMode("random");
         resizeBoard();
+
+        function ensureInitialTarget() {
+          if (state.activeShape) {
+            return;
+          }
+
+          const pickedShape = getPickedShape();
+          const nextShape = pickedShape || selectShape();
+
+          if (!nextShape) {
+            return;
+          }
+
+          loadTarget(
+            nextShape,
+            "Target ready: " + nextShape.name + ". Hold Space to start.",
+            "idle"
+          );
+        }
+
+        // Force initialization on first load
+        ensureInitialTarget();
+
+        // Retry in case GitHub Pages delays execution
+        setTimeout(ensureInitialTarget, 100);
+        setTimeout(ensureInitialTarget, 500);
+        setTimeout(ensureInitialTarget, 1000);
+
+        // Recover when page is restored from cache
+        window.addEventListener("pageshow", ensureInitialTarget);
+        window.addEventListener("focus", ensureInitialTarget);
+        document.addEventListener("visibilitychange", () => {
+          if (!document.hidden) {
+            ensureInitialTarget();
+          }
+        });
       })();
     
 // Persistent focus fix for GitHub Pages
@@ -2815,9 +2851,22 @@ document.addEventListener('pointerdown', () => {
   setTimeout(() => canvas && canvas.focus(), 0);
 }, true);
 document.addEventListener('DOMContentLoaded', () => {
-  setTimeout(() => canvas && canvas.focus(), 100);
-  setTimeout(() => canvas && canvas.focus(), 500);
-  setTimeout(() => canvas && canvas.focus(), 1000);
+  ensureInitialTarget();
+
+  setTimeout(() => {
+    ensureInitialTarget();
+    canvas && canvas.focus();
+  }, 100);
+
+  setTimeout(() => {
+    ensureInitialTarget();
+    canvas && canvas.focus();
+  }, 500);
+
+  setTimeout(() => {
+    ensureInitialTarget();
+    canvas && canvas.focus();
+  }, 1000);
 });
 
 </script>
