@@ -1,0 +1,2570 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Doodle Lab</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bree+Serif&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+      :root {
+        color-scheme: light;
+        --ink: #1f1b16;
+        --ink-soft: rgba(31, 27, 22, 0.72);
+        --paper: #f7f1e1;
+        --paper-2: #f3d7ab;
+        --accent: #0a7b83;
+        --accent-2: #f26b1d;
+        --grid: rgba(0, 0, 0, 0.08);
+        --shadow: 0 18px 45px rgba(0, 0, 0, 0.12);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        min-height: 100vh;
+        width: 100%;
+      }
+
+      body {
+        font-family: "Nunito", "Trebuchet MS", sans-serif;
+        color: var(--ink);
+        background-color: #2c3240;
+        background-image: linear-gradient(135deg, #000000 0%, #1b1b1b 35%, #353535 70%, #222222 100%);
+        background-attachment: fixed;
+        background-size: cover;
+        position: relative;
+      }
+
+      /* Animated Ambient Background */
+      .bg-ambient {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        z-index: 0;
+        overflow: hidden;
+        pointer-events: none;
+      }
+
+      .blob {
+        position: absolute;
+        border-radius: 50%;
+        filter: blur(80px);
+        opacity: 0.55;
+        mix-blend-mode: multiply;
+        will-change: transform;
+        animation: floatBlob 25s infinite ease-in-out;
+      }
+
+      .blob-1 {
+        top: -10%;
+        left: -10%;
+        width: 50vw;
+        height: 50vw;
+        background: radial-gradient(circle, rgba(10, 61, 65, 0.28) 0%, rgba(10, 123, 131, 0) 70%);
+        animation-duration: 28s;
+        animation-delay: 0s;
+      }
+
+      .blob-2 {
+        bottom: -15%;
+        right: -10%;
+        width: 60vw;
+        height: 60vw;
+        background: radial-gradient(circle, rgba(75, 36, 14, 0.22) 0%, rgba(242, 107, 29, 0) 70%);
+        animation-duration: 32s;
+        animation-delay: -5s;
+      }
+
+      .blob-3 {
+        top: 30%;
+        right: 15%;
+        width: 45vw;
+        height: 45vw;
+        background: radial-gradient(circle, rgba(53, 73, 75, 0.16) 0%, rgba(10, 123, 131, 0) 70%);
+        animation-duration: 24s;
+        animation-delay: -10s;
+      }
+
+      .blob-4 {
+        bottom: 20%;
+        left: 10%;
+        width: 40vw;
+        height: 40vw;
+        background: radial-gradient(circle, rgba(78, 47, 29, 0.18) 0%, rgba(242, 107, 29, 0) 70%);
+        animation-duration: 36s;
+        animation-delay: -15s;
+      }
+
+      @keyframes floatBlob {
+        0%, 100% {
+          transform: translate(0, 0) scale(1) rotate(0deg);
+        }
+        33% {
+          transform: translate(8%, -6%) scale(1.1) rotate(120deg);
+        }
+        66% {
+          transform: translate(-5%, 8%) scale(0.9) rotate(240deg);
+        }
+      }
+
+      .frame {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 36px 20px 64px;
+        position: relative;
+        z-index: 1;
+      }
+
+      .hero {
+        position: relative;
+        z-index: 1;
+        display: grid;
+        gap: 12px;
+        margin-bottom: 28px;
+        animation: fadeUp 0.8s ease-out both;
+        color: #fdfaf3;
+      }
+
+      .title {
+        font-family: "Bree Serif", "Georgia", serif;
+        font-size: clamp(2rem, 4vw, 3.4rem);
+        letter-spacing: 0.5px;
+      }
+
+      .subtitle {
+        max-width: 700px;
+        color: rgba(253, 250, 243, 0.85);
+        font-size: 1.05rem;
+      }
+
+      .panel {
+        position: relative;
+        z-index: 1;
+        display: grid;
+        grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+        gap: 24px;
+        align-items: start;
+        animation: fadeUp 0.9s ease-out both;
+        animation-delay: 0.15s;
+      }
+
+      .board-shell {
+        padding: 22px;
+        border-radius: 24px;
+        background: rgba(255, 255, 255, 0.75);
+        box-shadow: 0 20px 50px rgba(31, 27, 22, 0.08), inset 0 0 0 1px rgba(255, 255, 255, 0.5);
+        border: 1px solid rgba(31, 27, 22, 0.05);
+        backdrop-filter: blur(16px);
+        width: 100%;
+        position: relative;
+      }
+
+      .board-area {
+        display: grid;
+        justify-items: center;
+        gap: 16px;
+        width: 100%;
+      }
+
+      canvas {
+        display: block;
+        border-radius: 18px;
+        background: #7588a0;
+        border: 1px solid rgba(31, 27, 22, 0.1);
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.6);
+        max-width: 100%;
+        image-rendering: pixelated;
+        image-rendering: crisp-edges;
+      }
+
+      .hud {
+        width: 100%;
+        display: grid;
+        gap: 10px;
+      }
+
+      .status {
+        padding: 10px 12px;
+        border-radius: 12px;
+        background: rgba(10, 123, 131, 0.1);
+        border: 1px solid rgba(10, 123, 131, 0.18);
+        font-weight: 600;
+      }
+
+      .status[data-tone="idle"] {
+        background: rgba(31, 27, 22, 0.07);
+        border-color: rgba(31, 27, 22, 0.15);
+      }
+
+      .status[data-tone="done"] {
+        background: rgba(242, 107, 29, 0.12);
+        border-color: rgba(242, 107, 29, 0.2);
+      }
+
+      .status[data-tone="live"] {
+        background: rgba(10, 123, 131, 0.18);
+        border-color: rgba(10, 123, 131, 0.35);
+      }
+
+      .status[data-tone="warn"] {
+        background: rgba(242, 107, 29, 0.2);
+        border-color: rgba(242, 107, 29, 0.35);
+      }
+
+      .hud-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+
+      .chip {
+        padding: 6px 10px;
+        border-radius: 999px;
+        font-size: 0.9rem;
+        background: rgba(31, 27, 22, 0.06);
+        border: 1px solid rgba(31, 27, 22, 0.15);
+        min-width: 112px;
+        text-align: center;
+      }
+
+      .chip.wide {
+        min-width: 128px;
+      }
+
+      .meter-stack {
+        display: grid;
+        gap: 10px;
+      }
+
+      .meter {
+        display: grid;
+        gap: 6px;
+        padding: 10px 12px;
+        border-radius: 14px;
+        background: rgba(31, 27, 22, 0.05);
+        border: 1px solid rgba(31, 27, 22, 0.1);
+      }
+
+      .meter-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: baseline;
+        font-size: 0.92rem;
+        font-weight: 600;
+      }
+
+      .meter-value {
+        color: var(--accent-2);
+        font-weight: 700;
+        min-width: 44px;
+        text-align: right;
+      }
+
+      .meter-track {
+        position: relative;
+        height: 12px;
+        border-radius: 999px;
+        overflow: hidden;
+        background: rgba(31, 27, 22, 0.1);
+      }
+
+      .meter-fill {
+        display: block;
+        height: 100%;
+        width: 0%;
+        border-radius: inherit;
+        transition: width 0.2s ease;
+      }
+
+      .meter-fill.level {
+        background: linear-gradient(90deg, var(--accent), #18a6b0);
+      }
+
+      .finish-popup {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -55%) scale(0.96);
+        min-width: 260px;
+        max-width: min(86vw, 420px);
+        padding: 16px 18px;
+        border-radius: 18px;
+        background: rgba(247, 241, 225, 0.95);
+        border: 1px solid rgba(31, 27, 22, 0.12);
+        box-shadow: 0 18px 40px rgba(0, 0, 0, 0.18);
+        color: var(--ink);
+        font-weight: 700;
+        text-align: center;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.18s ease, transform 0.18s ease;
+        z-index: 3;
+      }
+
+      .finish-popup.is-visible {
+        opacity: 1;
+        transform: translate(-50%, -55%) scale(1);
+        pointer-events: auto;
+      }
+
+      .countdown-popup {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -54%) scale(0.9);
+        width: min(78vw, 360px);
+        padding: 22px 24px 20px;
+        border-radius: 24px;
+        background: rgba(255, 250, 240, 0.96);
+        border: 2px solid rgba(10, 123, 131, 0.32);
+        box-shadow: 0 24px 60px rgba(31, 27, 22, 0.24), 0 0 0 8px rgba(255, 250, 240, 0.35);
+        color: var(--ink);
+        text-align: center;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.16s ease, transform 0.16s ease;
+        z-index: 4;
+      }
+
+      .countdown-popup.is-visible {
+        opacity: 1;
+        transform: translate(-50%, -54%) scale(1);
+      }
+
+      .countdown-label {
+        display: block;
+        margin-bottom: 6px;
+        color: var(--accent);
+        font: 800 0.86rem "Nunito", "Trebuchet MS", sans-serif;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+
+      .countdown-number {
+        font: 800 clamp(4rem, 15vw, 7rem) "Bree Serif", Georgia, serif;
+        line-height: 0.95;
+      }
+
+      .countdown-help {
+        margin-top: 10px;
+        font-weight: 800;
+      }
+
+      .finish-popup[hidden],
+      .countdown-popup[hidden],
+      .finish-actions[hidden],
+      .stats-grid[hidden],
+      .picker-row[hidden] {
+        display: none;
+      }
+
+      .finish-popup .finish-label {
+        display: block;
+        font-size: 0.82rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--accent-2);
+        margin-bottom: 4px;
+      }
+
+      .chip[data-timer="low"] {
+        background: rgba(242, 107, 29, 0.18);
+        border-color: rgba(242, 107, 29, 0.4);
+      }
+
+      .chip[data-timer="expired"] {
+        background: rgba(31, 27, 22, 0.1);
+        border-color: rgba(31, 27, 22, 0.2);
+      }
+
+      .tips {
+        padding: 20px;
+        border-radius: 22px;
+        background: rgba(255, 255, 255, 0.70);
+        border: 1px solid rgba(31, 27, 22, 0.05);
+        box-shadow: 0 16px 40px rgba(31, 27, 22, 0.06), inset 0 0 0 1px rgba(255, 255, 255, 0.5);
+        backdrop-filter: blur(16px);
+        display: grid;
+        gap: 16px;
+      }
+
+      .tips h2 {
+        font-family: "Bree Serif", "Georgia", serif;
+        margin: 0;
+        font-size: 1.4rem;
+      }
+
+      .tips p {
+        margin: 0;
+        color: var(--ink-soft);
+        line-height: 1.5;
+      }
+
+      .controls {
+        display: grid;
+        gap: 12px;
+      }
+
+      .modifier {
+        display: grid;
+        gap: 8px;
+        padding: 12px;
+        background: rgba(31, 27, 22, 0.05);
+        border-radius: 14px;
+        border: 1px solid rgba(31, 27, 22, 0.1);
+      }
+
+      .modifier label {
+        font-weight: 600;
+      }
+
+      .modifier-value {
+        font-weight: 700;
+        color: var(--accent-2);
+        min-width: 42px;
+        display: inline-block;
+        text-align: center;
+      }
+
+      .board-tabs {
+        width: 100%;
+        display: flex;
+        gap: 8px;
+        padding: 6px;
+        border-radius: 14px;
+        background: rgba(31, 27, 22, 0.06);
+        border: 1px solid rgba(31, 27, 22, 0.1);
+      }
+
+      .board-tab {
+        flex: 1;
+        padding: 10px 12px;
+        border-radius: 12px;
+        border: 1px solid rgba(31, 27, 22, 0.2);
+        background: #fffaf0;
+        font-weight: 700;
+        font-family: "Nunito", "Trebuchet MS", sans-serif;
+        color: var(--ink);
+        cursor: pointer;
+        transition: background-color 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+                    border-color 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+                    color 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+                    box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+                    transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+      }
+
+      .board-tab:hover {
+        border-color: rgba(31, 27, 22, 0.35);
+        background: #fffdf9;
+        transform: translateY(-1px);
+      }
+
+      .board-tab:active {
+        transform: translateY(0);
+      }
+
+      .board-tab.is-active {
+        background: var(--accent);
+        border-color: rgba(10, 123, 131, 0.6);
+        color: #fff;
+      }
+
+      .board-tab.is-active:hover {
+        background: #0d8c95;
+        border-color: rgba(10, 123, 131, 0.7);
+        transform: translateY(-1px);
+      }
+
+      .board-tab:disabled {
+        cursor: default;
+        opacity: 0.72;
+      }
+
+      .board-tab.is-active:disabled {
+        opacity: 1;
+      }
+
+      .board-tab:focus-visible {
+        outline: none;
+        border-color: var(--accent-2);
+        box-shadow: 0 0 0 3px rgba(242, 107, 29, 0.25);
+      }
+
+      .picker-row {
+        width: 100%;
+        display: grid;
+        gap: 6px;
+      }
+
+      .picker-row label {
+        font-weight: 600;
+      }
+
+      .picker-row select {
+        width: 100%;
+        padding: 8px 10px;
+        border-radius: 10px;
+        border: 1px solid rgba(31, 27, 22, 0.2);
+        background: #fffaf0;
+        font-weight: 600;
+        font-family: "Nunito", "Trebuchet MS", sans-serif;
+        color: var(--ink);
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+      }
+
+      .picker-row select:focus-visible {
+        outline: none;
+        border-color: var(--accent-2);
+        box-shadow: 0 0 0 3px rgba(242, 107, 29, 0.25);
+      }
+
+      .picker-lock {
+        padding: 8px 10px;
+        border-radius: 10px;
+        background: rgba(242, 107, 29, 0.12);
+        border: 1px solid rgba(242, 107, 29, 0.28);
+        color: var(--ink);
+        font-weight: 700;
+      }
+
+      .picker-row select[data-selected="true"] {
+        border-color: var(--accent-2);
+      }
+
+      .control {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 12px;
+        background: rgba(31, 27, 22, 0.05);
+        border-radius: 14px;
+        border: 1px solid rgba(31, 27, 22, 0.1);
+      }
+
+      .control-text {
+        color: var(--ink-soft);
+      }
+
+      .keycap {
+        min-width: 34px;
+        padding: 6px 10px;
+        border-radius: 10px;
+        background: #fffaf0;
+        border: 1px solid rgba(31, 27, 22, 0.2);
+        font-weight: 700;
+        text-align: center;
+        text-transform: uppercase;
+        box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.08);
+        animation: keyIn 0.6s ease-out both;
+        animation-delay: calc(var(--i) * 0.08s);
+      }
+
+      .keycap.wide {
+        min-width: 78px;
+        text-transform: none;
+      }
+
+      .key-row {
+        display: flex;
+        gap: 8px;
+      }
+
+      .choice-row {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+      }
+
+      .difficulty-row {
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+      }
+
+      .choice-button,
+      .finish-action {
+        min-height: 42px;
+        padding: 9px 10px;
+        border-radius: 12px;
+        border: 1px solid rgba(31, 27, 22, 0.18);
+        background: #fffaf0;
+        color: var(--ink);
+        font: 700 0.95rem "Nunito", "Trebuchet MS", sans-serif;
+        cursor: pointer;
+        transition: background-color 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+                    border-color 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+                    color 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+                    box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+                    transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+      }
+
+      .choice-button:hover,
+      .finish-action:hover {
+        border-color: rgba(31, 27, 22, 0.35);
+        background: #fffdf9;
+        transform: translateY(-1px);
+      }
+
+      .choice-button:active,
+      .finish-action:active {
+        transform: translateY(0);
+      }
+
+      .choice-button.is-active,
+      .finish-action.primary {
+        background: var(--accent);
+        border-color: rgba(10, 123, 131, 0.55);
+        color: #fff;
+      }
+
+      .choice-button.is-active:hover,
+      .finish-action.primary:hover {
+        background: #0d8c95;
+        border-color: rgba(10, 123, 131, 0.7);
+        transform: translateY(-1px);
+      }
+
+      .choice-button:focus-visible,
+      .finish-action:focus-visible {
+        outline: none;
+        border-color: var(--accent-2);
+        box-shadow: 0 0 0 3px rgba(242, 107, 29, 0.25);
+      }
+
+      .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
+        margin-top: 12px;
+      }
+
+      .stats-item {
+        display: grid;
+        gap: 2px;
+        padding: 9px 8px;
+        border-radius: 12px;
+        background: rgba(31, 27, 22, 0.06);
+        border: 1px solid rgba(31, 27, 22, 0.1);
+      }
+
+      .stats-label {
+        color: var(--ink-soft);
+        font-size: 0.74rem;
+        font-weight: 600;
+        text-transform: uppercase;
+      }
+
+      .stats-value {
+        font-size: 1.05rem;
+      }
+
+      .finish-actions {
+        display: flex;
+        gap: 10px;
+        justify-content: center;
+        margin-top: 14px;
+      }
+
+      .footer-note {
+        margin-top: 24px;
+        color: var(--ink-soft);
+        font-size: 0.95rem;
+      }
+
+      @keyframes fadeUp {
+        from {
+          opacity: 0;
+          transform: translateY(16px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      @keyframes keyIn {
+        from {
+          opacity: 0;
+          transform: translateY(6px) scale(0.95);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0) scale(1);
+        }
+      }
+
+      @media (max-width: 900px) {
+        .panel {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Ambient glowing background elements -->
+    <div class="bg-ambient" aria-hidden="true">
+      <div class="blob blob-1"></div>
+      <div class="blob blob-2"></div>
+      <div class="blob blob-3"></div>
+      <div class="blob blob-4"></div>
+    </div>
+
+    <main class="frame">
+      <header class="hero">
+        <h1 class="title">Doodle Lab</h1>
+        <p class="subtitle">Hold space and press WASD or Arrow keys to match the template drawing before the timer expires.</p>
+      </header>
+      <section class="panel">
+        <div class="board-shell">
+          <div class="board-area">
+            <div class="board-tabs" role="tablist" aria-label="Drawing mode">
+              <button class="board-tab is-active" id="tab-random" type="button" role="tab" aria-selected="true">
+                Random Doodle
+              </button>
+              <button class="board-tab" id="tab-pick" type="button" role="tab" aria-selected="false" disabled title="Beat Hard mode to unlock!">
+                Pick a Doodle (Locked)
+              </button>
+            </div>
+            <div class="picker-row" id="picker-row" hidden>
+              <label for="shape-picker">Available doodles</label>
+              <select id="shape-picker">
+                <option value="" selected disabled>Choose a doodle...</option>
+              </select>
+              <div class="picker-lock" id="picker-lock" hidden></div>
+            </div>
+            <canvas id="board" aria-label="Drawing grid"></canvas>
+            <div class="countdown-popup" id="countdown-popup" aria-live="assertive" hidden>
+              <span class="countdown-label">Get ready</span>
+              <div class="countdown-number" id="countdown-number">3</div>
+              <div class="countdown-help">Press Space after the countdown</div>
+            </div>
+            <div class="finish-popup" id="finish-popup" aria-live="polite" hidden>
+              <span class="finish-label" id="finish-popup-label">Round Complete</span>
+              <div id="finish-popup-text">Done in --</div>
+              <div class="stats-grid" id="finish-stats" hidden></div>
+              <div class="finish-actions" id="finish-actions" hidden>
+                <button class="finish-action primary" id="next-run" type="button" hidden>Next</button>
+                <button class="finish-action primary" id="comical-ok" type="button" hidden>Let's speed it up!
+                </button>
+                <button class="finish-action primary" id="restart-run" type="button">Restart</button>
+                <button class="finish-action" id="infinite-run" type="button">Infinite</button>
+              </div>
+            </div>
+            <div class="hud">
+              <div class="status" id="status" data-tone="idle" aria-live="polite">
+                Hold Space to start drawing.
+              </div>
+              <div class="hud-meta">
+                <div class="chip" id="target">Target: --</div>
+                <div class="chip" id="timer">Time: 0.0s</div>
+                <div class="chip" id="steps">Steps: 0</div>
+                <div class="chip" id="difficulty-chip" hidden>Difficulty: 1</div>
+              </div>
+              <div class="meter-stack" aria-label="Progress bars">
+                <div class="meter">
+                  <div class="meter-head">
+                    <span>Difficulty</span>
+                    <span class="meter-value" id="level-meter-value">1 / 5</span>
+                  </div>
+                  <div class="meter-track" aria-hidden="true">
+                    <span class="meter-fill level" id="level-meter-fill"></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <aside class="tips">
+          <h2>Keyboard Controls</h2>
+          <p>Draw on the grid to match the ghosted target shape before the timer hits zero.</p>
+          <div class="choice-row" role="group" aria-label="Movement keys">
+            <button class="choice-button is-active" id="controls-wasd" type="button" aria-pressed="true">WASD</button>
+            <button class="choice-button" id="controls-arrows" type="button" aria-pressed="false">Arrows</button>
+          </div>
+          <div class="controls">
+            <div class="control">
+              <div class="key-row">
+                <span class="keycap move-key" style="--i: 0" data-wasd="W" data-arrows="Up">W</span>
+                <span class="keycap move-key" style="--i: 1" data-wasd="A" data-arrows="Left">A</span>
+                <span class="keycap move-key" style="--i: 2" data-wasd="S" data-arrows="Down">S</span>
+                <span class="keycap move-key" style="--i: 3" data-wasd="D" data-arrows="Right">D</span>
+              </div>
+              <span class="control-text">Move the cursor</span>
+            </div>
+            <div class="control">
+              <span class="keycap wide" style="--i: 4">Space</span>
+              <span class="control-text">Hold to place pixels</span>
+            </div>
+            <div class="control">
+              <span class="keycap" style="--i: 5">Q</span>
+              <span class="control-text">Undo last key press</span>
+            </div>
+            <div class="control">
+              <span class="keycap" style="--i: 6">R</span>
+              <span class="control-text">Reset current round</span>
+            </div>
+          </div>
+          <div class="modifier">
+            <label for="volume-slider">SFX Volume</label>
+            <input type="range" id="volume-slider" min="0" max="1" step="0.01" value="1" style="width: 100%; accent-color: var(--accent);">
+          </div>
+          <div class="modifier">
+            <label>Timer Speed</label>
+            <div class="choice-row" id="difficulty-buttons" role="group" aria-label="Timer Speed">
+              <button class="choice-button is-active" type="button" data-difficulty="1" aria-pressed="true" disabled style="opacity:1;cursor:default;">Easy</button>
+              <button class="choice-button" type="button" data-difficulty="5" aria-pressed="false" disabled style="opacity:0.3;cursor:default;">Hard</button>
+            </div>
+
+          </div>
+          <p class="footer-note">
+            Tip: targets can be disconnected. Submitting early does not reset your drawing.
+          </p>
+        </aside>
+      </section>
+    </main>
+
+    <script>
+      (function () {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        let globalVolume = 1; // controlled by UI slider (0.0 - 1.0)
+
+        function playSound(type, opts = {}) {
+          if (globalVolume === 0) return;
+          if (audioCtx.state === 'suspended') {
+            audioCtx.resume();
+          }
+
+          const now = audioCtx.currentTime;
+
+          // Helper to schedule a single note
+          function scheduleNote(freq, start, duration, wave = 'sine', peak = 0.08) {
+            const osc = audioCtx.createOscillator();
+            const g = audioCtx.createGain();
+            osc.type = wave;
+            osc.frequency.setValueAtTime(freq, start);
+            g.gain.setValueAtTime(0.0001, start);
+            g.gain.linearRampToValueAtTime(peak * globalVolume, start + 0.01);
+            g.gain.exponentialRampToValueAtTime(0.001 * globalVolume, start + duration);
+            osc.connect(g);
+            g.connect(audioCtx.destination);
+            osc.start(start);
+            osc.stop(start + duration + 0.01);
+          }
+
+          if (type === 'move') {
+            // Restore original crisp small click implementation
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            oscillator.type = 'sine';
+            oscillator.frequency.setValueAtTime(1000, now);
+            oscillator.frequency.exponentialRampToValueAtTime(100, now + 0.02);
+            gainNode.gain.setValueAtTime(0.1 * globalVolume, now);
+            gainNode.gain.exponentialRampToValueAtTime(0.001 * globalVolume, now + 0.02);
+            oscillator.start(now);
+            oscillator.stop(now + 0.02);
+          } else if (type === 'undo') {
+            // Restore original undo sound
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            oscillator.type = 'triangle';
+            oscillator.frequency.setValueAtTime(450, now);
+            oscillator.frequency.exponentialRampToValueAtTime(150, now + 0.1);
+            gainNode.gain.setValueAtTime(0.1 * globalVolume, now);
+            gainNode.gain.linearRampToValueAtTime(0.001 * globalVolume, now + 0.1);
+            oscillator.start(now);
+            oscillator.stop(now + 0.1);
+          } else if (type === 'place') {
+            // Restore original tiny ding
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            oscillator.type = 'sine';
+            oscillator.frequency.setValueAtTime(1320, now);
+            gainNode.gain.setValueAtTime(0.15 * globalVolume, now);
+            gainNode.gain.exponentialRampToValueAtTime(0.001 * globalVolume, now + 0.15);
+            oscillator.start(now);
+            oscillator.stop(now + 0.15);
+          } else if (type === 'celebrate') {
+            // If only high C requested (post-infinite), play a short high C arpeggio
+            if (opts.highOnly) {
+              const base = 1046.5; // C6
+              const notes = [base, base * Math.pow(2, 4/12), base * Math.pow(2, 7/12), base * 2]; // C, E, G, C
+              let t = now;
+              const nd = 0.08;
+              notes.forEach((f) => {
+                scheduleNote(f, t, nd, 'triangle', 0.09);
+                t += nd;
+              });
+              return;
+            }
+
+            // Full arpeggio sequence: C major, E major, G major, A-flat major, C major (higher)
+            const C4 = 261.6256;
+            const E4 = 329.6276;
+            const G4 = 392.0;
+            const C5 = 523.2511;
+            const E4_sharp = 415.3047; // G# / Ab
+            const B4 = 493.8833;
+            const D5 = 587.3295;
+            const Eb5 = 622.2540; // D# / Eb
+
+            const chords = [
+              [C4, E4, G4, C5],
+              [E4, E4_sharp, B4, E4 * 2],
+              [G4, B4, D5, G4 * 2],
+              [E4_sharp, C5, Eb5, E4_sharp * 2],
+              [C5, E4 * 2, G4 * 2, C5 * 2]
+            ];
+
+            // Play a single 4-note arpeggio corresponding to current difficulty (1-5).
+            const noteDur = 0.08;
+            const diff = Math.max(1, Math.min(5, Number(state.difficulty) || 1));
+            const idx = diff - 1;
+            const chord = chords[idx] || chords[0];
+            let t = now + 0.02;
+            chord.forEach((f) => {
+              scheduleNote(f, t, noteDur, 'triangle', 0.08);
+              t += noteDur;
+            });
+          }
+        }
+
+        const canvas = document.getElementById("board");
+        const boardShell = document.querySelector(".board-shell");
+        const statusEl = document.getElementById("status");
+        const targetEl = document.getElementById("target");
+        const timerEl = document.getElementById("timer");
+        const stepsEl = document.getElementById("steps");
+        const levelMeterValue = document.getElementById("level-meter-value");
+        const levelMeterFill = document.getElementById("level-meter-fill");
+        const difficultyChip = document.getElementById("difficulty-chip");
+        let difficultyChipTimer = null;
+        const countdownPopup = document.getElementById("countdown-popup");
+        const countdownNumber = document.getElementById("countdown-number");
+        const finishPopup = document.getElementById("finish-popup");
+        const finishPopupLabel = document.getElementById("finish-popup-label");
+        const finishPopupText = document.getElementById("finish-popup-text");
+        const finishStats = document.getElementById("finish-stats");
+        const finishActions = document.getElementById("finish-actions");
+        const restartRunButton = document.getElementById("restart-run");
+        const infiniteRunButton = document.getElementById("infinite-run");
+        const nextRunButton = document.getElementById("next-run");
+        const comicalOkButton = document.getElementById("comical-ok");
+        const shapePicker = document.getElementById("shape-picker");
+        const pickerLock = document.getElementById("picker-lock");
+        const tabRandom = document.getElementById("tab-random");
+        const tabPick = document.getElementById("tab-pick");
+        const pickerRow = document.getElementById("picker-row");
+        const controlsPanel = document.querySelector(".tips");
+        const controlsWasd = document.getElementById("controls-wasd");
+        const volumeSlider = document.getElementById("volume-slider");
+        if (volumeSlider) {
+          // initialize global volume from slider and update on input
+          try { globalVolume = parseFloat(volumeSlider.value); } catch (e) { globalVolume = 1; }
+          volumeSlider.addEventListener('input', () => {
+            globalVolume = parseFloat(volumeSlider.value);
+          });
+        }
+        const controlsArrows = document.getElementById("controls-arrows");
+        const moveKeys = Array.from(document.querySelectorAll(".move-key"));
+        const difficultyButtons = Array.from(document.querySelectorAll("[data-difficulty]"));
+        const controlPanelButtons = Array.from(document.querySelectorAll(".tips .choice-button"));
+        const ctx = canvas.getContext("2d", { alpha: false });
+        const TICK_MS = 100;
+        const MAX_LEVEL = 5;
+        const ROUND_STATS_MS = 1900;
+        const DIFFICULTY_TIME_SCALE = {
+          1: 1.8,
+          2: 1.5,
+          3: 1.2,
+          4: 1.0,
+          5: 0.85
+        };
+        const MOVEMENT_KEYS = {
+          wasd: {
+            KeyW: [0, -1],
+            KeyA: [-1, 0],
+            KeyS: [0, 1],
+            KeyD: [1, 0]
+          },
+          arrows: {
+            ArrowUp: [0, -1],
+            ArrowLeft: [-1, 0],
+            ArrowDown: [0, 1],
+            ArrowRight: [1, 0]
+          }
+        };
+        let finishPopupTimer = null;
+
+        function patternToCells(pattern) {
+          const cells = [];
+          pattern.forEach((row, y) => {
+            for (let x = 0; x < row.length; x += 1) {
+              if (row[x] === "#") {
+                cells.push([x, y]);
+              }
+            }
+          });
+          return cells;
+        }
+
+        const SHAPES = [
+          // ── Difficulty 1 ─────────────────────────────────────────
+          {
+            name: "Diamond",
+            difficulty: 1,
+            baseTime: 20,
+            pattern: [
+              "...#...",
+              "..###..",
+              ".#####.",
+              "#######",
+              ".#####.",
+              "..###..",
+              "...#..."
+            ]
+          },
+          {
+            name: "Tree",
+            difficulty: 1,
+            baseTime: 20,
+            pattern: [
+              "...#...",
+              "..###..",
+              ".#####.",
+              "#######",
+              "..###..",
+              "..###.."
+            ]
+          },
+          {
+            name: "Sword",
+            difficulty: 1,
+            baseTime: 20,
+            pattern: [
+              ".....#...",
+              "....##...",
+              "....##...",
+              "....##...",
+              "....##...",
+              "....##...",
+              "....##...",
+              ".########.",
+              "...####..",
+              "....##..",
+              "....##...",
+              "....##."
+            ]
+          },
+          // ── Difficulty 2 ─────────────────────────────────────────
+          {
+            name: "Heart",
+            difficulty: 2,
+            baseTime: 20,
+            pattern: [
+              ".##.##.",
+              "#######",
+              "#######",
+              ".#####.",
+              "..###..",
+              "...#..."
+            ]
+          },
+          {
+            name: "Star",
+            difficulty: 3,
+            baseTime: 35,
+            pattern: [
+              ".......#.......",
+              ".......#.......",
+              "......#.#......",
+              "......#.#......",
+              ".....#...#.....",
+              "....#.....#....",
+              "..##.......##.",
+              "##...........##",
+              "..##.......##..",
+              "....#.....#....",
+              ".....#...#.....",
+              "......#.#.....",
+              "......#.#......",
+              ".......#.......",
+              ".......#......."
+            ]
+          },
+          {
+            // Fish: oval body + forked tail tips on right + eye hole on left
+            name: "Fish",
+            difficulty: 2,
+            baseTime: 30,
+            pattern: [
+              "..#####..###",
+              ".########.#",
+              ".#.#######",
+              ".########.#",
+              "..#####..###"
+            ]
+          },
+          {
+            // Fox: pointed ear tips → ear bases → forehead → eye gaps → white cheek patches → muzzle → snout tip
+            name: "Fox",
+            difficulty: 5,
+            baseTime: 40,
+            pattern: [
+              ".#........#",
+              ".##......##.........",
+              ".#.#######.#####...",
+              ".#........#.....#...",
+              ".#.##..##.#......#..",
+              ".#...##...#......#.",
+              "..#......######...#.",
+              "...######.....##..#.",
+              ".....###..........#",
+              "........##########.",  
+            ]
+          },
+          // ── Difficulty 3 ─────────────────────────────────────────
+          {
+            // Smiley: outer circle, eye holes at row 2, smile curves UP (side gaps higher than center)
+            name: "Smiley",
+            difficulty: 3,
+            baseTime: 30,
+            pattern: [
+              ".#####.",
+              "#######",
+              "##.#.##",
+              "#######",
+              "#.###.#",
+              "##...##",
+              ".#####."
+            ]
+          },
+          {
+            // Cat: two pointy ear tips → ear bases → solid head → eye holes → muzzle → chin
+            name: "Cat",
+            difficulty: 2,
+            baseTime: 25,
+            pattern: [
+              "#.....#",
+              "##...##",
+              "#######",
+              "##.#.##",
+              "#######",
+              ".#####.",
+              "..###.."
+            ]
+          },
+          {
+            // Rabbit: VERY long upright ears (3 rows of thin strands) → solid head → face → chin
+            name: "Rabbit",
+            difficulty: 3,
+            baseTime: 30,
+            pattern: [
+              ".#...#.",
+              ".#...#.",
+              "##...##",
+              "###.###",
+              "#######",
+              "##.#.##",
+              ".#####.",
+              "..###.."
+            ]
+          },
+          // ── Difficulty 4 ─────────────────────────────────────────
+          {
+            // Owl: ear-tuft tips → forehead → 2×2 big eye holes → beak → chest → feet
+            name: "Owl",
+            difficulty: 4,
+            baseTime: 35,
+            pattern: [
+              "#......#",
+              "########",
+              "##.##.##",
+              "##.##.##",
+              "..####..",
+              "...##...",
+              ".######",
+              "..####.."
+            ]
+          },
+          {
+            name: "Duck",
+            difficulty: 5,
+            baseTime: 40,
+            pattern: [
+              ".....####....",
+              "...#######...",
+              "..########...",
+              ".###.#####...",
+              ".###.####....",
+              "..#######....",
+              "....####.....",
+              "...######..#.",
+              "..##########.",
+              ".###########.",
+              ".##########..",
+              "..########..."
+            ]
+          },
+          {
+            name: "Dolphin",
+            difficulty: 5,
+            baseTime: 45,
+            pattern: [
+              "#####.######...",
+              "######.....##..",
+              ".####.......##.",
+              "..##......#..##",
+              "...#.........#.",
+              "..#...#######..",
+              "..#..#..###....",
+              "..#.#...##.....",
+              "..#.#...#......",
+              "...#...........",
+              ".#####.........",
+              "#######........",
+              "###.###........"
+            ]
+          },
+  
+          {
+            name: "Castle",
+            difficulty: 4,
+            baseTime: 30,
+            pattern: [
+              "#.#.#.#",
+              "#######",
+              "#..#..#",
+              "#######",
+              "###.###",
+              "###.###",
+              "#######"
+            ]
+          },
+          {
+            // Jellyfish: filled dome bell (3 rows) + alternating wavy tentacles (5 rows)
+            name: "Jellyfish",
+            difficulty: 4,
+            baseTime: 30,
+            pattern: [
+              ".#####.",
+              "#######",
+              "#######",
+              ".#.#.#.",
+              "#.#.#.#",
+              ".#.#.#.",
+              "#.#.#.#",
+              ".#.#.#."
+            ]
+          },
+        ].map((shape) => ({
+          ...shape,
+          cells: patternToCells(shape.pattern)
+        }));
+
+        function createSessionStats() {
+          return {
+            rounds: 0,
+            totalTime: 0,
+            undos: 0,
+            placements: 0,
+            correctPlacements: 0,
+            actions: 0
+          };
+        }
+
+        function createRoundStats() {
+          return {
+            undos: 0,
+            placements: 0,
+            correctPlacements: 0,
+            actions: 0
+          };
+        }
+
+        const state = {
+          cols: 18,
+          rows: 16,
+          cellSize: 32,
+          cursor: { x: 9, y: 8 },
+          cursorVisual: { x: 9, y: 8 },
+          drawing: false,
+          cells: new Set(),
+          history: [],
+          level: 1,
+          difficulty: 1,
+          timerSpeedMode: 1,
+          usedShapes: new Set(),
+          pickUnlocked: false,
+          pickLockedShape: "",
+          timeLeft: 0,
+          timeTotal: 0,
+          timerId: null,
+          countdownId: null,
+          countdownActive: false,
+          timerRunning: false,
+          lastTick: 0,
+          activeShape: null,
+          targetSet: new Set(),
+          targetName: "--",
+          pickMode: "random",
+          controlScheme: "wasd",
+          statsVisible: false,
+          finishPopupMode: null,
+          infiniteMode: false,
+          randomPhase: false,
+          hardChallengeMode: false,
+          difficultyQueue: [],
+          celebrateIndex: 0,
+          sessionStats: createSessionStats(),
+          roundStats: createRoundStats(),
+          drawTransition: 0
+        };
+
+        function lerpColor(c1, c2, t) {
+          const r = Math.round(c1[0] + (c2[0] - c1[0]) * t);
+          const g = Math.round(c1[1] + (c2[1] - c1[1]) * t);
+          const b = Math.round(c1[2] + (c2[2] - c1[2]) * t);
+          const a = (c1[3] + (c2[3] - c1[3]) * t).toFixed(3);
+          return `rgba(${r}, ${g}, ${b}, ${a})`;
+        }
+
+        let drawTransitionAnimId = null;
+        function animateDrawTransition(targetValue) {
+          if (drawTransitionAnimId) {
+            cancelAnimationFrame(drawTransitionAnimId);
+          }
+          const startTime = performance.now();
+          const startVal = state.drawTransition;
+          const duration = 200; // 200ms
+          
+          function tick(now) {
+            const elapsed = now - startTime;
+            const progress = Math.min(1, elapsed / duration);
+            // Ease out quad
+            const ease = progress * (2 - progress);
+            state.drawTransition = startVal + (targetValue - startVal) * ease;
+            drawBoard();
+            if (progress < 1) {
+              drawTransitionAnimId = requestAnimationFrame(tick);
+            } else {
+              state.drawTransition = targetValue;
+              drawBoard();
+              drawTransitionAnimId = null;
+            }
+          }
+          drawTransitionAnimId = requestAnimationFrame(tick);
+        }
+
+        // Smooth cursor glide: animates cursorVisual toward the logical cursor position
+        let cursorMoveAnimId = null;
+        function cancelCursorMove() {
+          if (cursorMoveAnimId) {
+            cancelAnimationFrame(cursorMoveAnimId);
+            cursorMoveAnimId = null;
+          }
+        }
+        function animateCursorMove(toX, toY) {
+          cancelCursorMove();
+          const startTime = performance.now();
+          const startX = state.cursorVisual.x;
+          const startY = state.cursorVisual.y;
+          const duration = 90; // ms — fast enough to feel snappy, slow enough to see glide
+
+          function tick(now) {
+            const elapsed = now - startTime;
+            const progress = Math.min(1, elapsed / duration);
+            // Ease out cubic
+            const ease = 1 - Math.pow(1 - progress, 3);
+            state.cursorVisual.x = startX + (toX - startX) * ease;
+            state.cursorVisual.y = startY + (toY - startY) * ease;
+            drawBoard();
+            if (progress < 1) {
+              cursorMoveAnimId = requestAnimationFrame(tick);
+            } else {
+              state.cursorVisual.x = toX;
+              state.cursorVisual.y = toY;
+              drawBoard();
+              cursorMoveAnimId = null;
+            }
+          }
+          cursorMoveAnimId = requestAnimationFrame(tick);
+        }
+
+        function setStatus(text, tone) {
+          statusEl.textContent = text;
+          statusEl.dataset.tone = tone;
+        }
+
+        function updateHud() {
+          stepsEl.textContent = "Steps: " + state.history.length;
+          if (levelMeterValue) {
+            const displayedLevel = Math.max(1, Math.min(MAX_LEVEL, state.level));
+            levelMeterValue.textContent = displayedLevel + " / " + MAX_LEVEL;
+          }
+          if (levelMeterFill) {
+            const shownLevel = Math.min(state.level, MAX_LEVEL);
+            levelMeterFill.style.width = (((shownLevel - 1) / (MAX_LEVEL - 1)) * 100).toFixed(1) + "%";
+          }
+          targetEl.textContent = "Target: " + state.targetName;
+          timerEl.textContent = "Time: " + formatTime(state.timeLeft);
+          updateDifficultyButtons();
+          // keep difficulty chip in sync if visible
+          if (difficultyChip && !difficultyChip.hidden) {
+            difficultyChip.textContent = "Difficulty: " + state.difficulty;
+          }
+          if (state.timeLeft <= 0) {
+            timerEl.dataset.timer = "expired";
+          } else if (state.timeLeft <= 5) {
+            timerEl.dataset.timer = "low";
+          } else {
+            timerEl.dataset.timer = "ok";
+          }
+        }
+
+        function hideFinishPopup() {
+          if (!finishPopup) {
+            return;
+          }
+          if (finishPopupTimer) {
+            window.clearTimeout(finishPopupTimer);
+            finishPopupTimer = null;
+          }
+          state.statsVisible = false;
+          state.finishPopupMode = null;
+          finishPopup.classList.remove("is-visible");
+          finishPopup.hidden = true;
+          if (finishActions) {
+            finishActions.hidden = true;
+          }
+        }
+
+        function renderStatsRows(rows) {
+          if (!finishStats) {
+            return;
+          }
+          finishStats.replaceChildren();
+          if (!rows || rows.length === 0) {
+            finishStats.hidden = true;
+            return;
+          }
+          rows.forEach((row) => {
+            const item = document.createElement("div");
+            const label = document.createElement("span");
+            const value = document.createElement("strong");
+
+            item.className = "stats-item";
+            label.className = "stats-label";
+            value.className = "stats-value";
+            label.textContent = row.label;
+            value.textContent = row.value;
+
+            item.append(label, value);
+            finishStats.appendChild(item);
+          });
+          finishStats.hidden = false;
+        }
+
+        function showFinishPopup(options) {
+          if (!finishPopup || !finishPopupText) {
+            return;
+          }
+          if (finishPopupTimer) {
+            window.clearTimeout(finishPopupTimer);
+            finishPopupTimer = null;
+          }
+          const isFinal = options.mode === "final" && options.allowActions === true;
+          const isNext = options.mode === "next" && options.allowActions === true;
+          const isComical = options.mode === "comical" && options.allowActions === true;
+          const isVictory = options.mode === "victory" && options.allowActions === true;
+          const isFail = options.mode === "fail" && options.allowActions === true;
+          state.statsVisible = true;
+          state.finishPopupMode = options.mode || "round";
+          finishPopupLabel.textContent = options.label || "Round Complete";
+          finishPopupText.textContent = options.message || "";
+          renderStatsRows(options.stats);
+          if (finishActions) {
+            finishActions.hidden = !(isFinal || isNext || isComical || isVictory || isFail);
+            if (nextRunButton) nextRunButton.hidden = !isNext;
+            if (comicalOkButton) comicalOkButton.hidden = !isComical;
+            if (restartRunButton) restartRunButton.hidden = !(isFinal || isVictory || isFail);
+            if (infiniteRunButton) infiniteRunButton.hidden = !isFinal;
+          }
+          finishPopup.hidden = false;
+          requestAnimationFrame(() => {
+            finishPopup.classList.add("is-visible");
+          });
+          if (options.duration) {
+            finishPopupTimer = window.setTimeout(() => {
+              hideFinishPopup();
+              if (typeof options.onHide === "function") {
+                options.onHide();
+              }
+            }, options.duration);
+          }
+        }
+
+        function beginBlockPath(x, y, size, inset, radius) {
+          const blockSize = size - inset * 2;
+          const px = x * size + inset;
+          const py = y * size + inset;
+          const r = Math.max(1, Math.min(radius, blockSize / 2));
+          ctx.beginPath();
+          if (typeof ctx.roundRect === "function") {
+            ctx.roundRect(px, py, blockSize, blockSize, r);
+            return { px, py, blockSize };
+          }
+
+          const x1 = px;
+          const y1 = py;
+          const x2 = px + blockSize;
+          const y2 = py + blockSize;
+          ctx.moveTo(x1 + r, y1);
+          ctx.lineTo(x2 - r, y1);
+          ctx.quadraticCurveTo(x2, y1, x2, y1 + r);
+          ctx.lineTo(x2, y2 - r);
+          ctx.quadraticCurveTo(x2, y2, x2 - r, y2);
+          ctx.lineTo(x1 + r, y2);
+          ctx.quadraticCurveTo(x1, y2, x1, y2 - r);
+          ctx.lineTo(x1, y1 + r);
+          ctx.quadraticCurveTo(x1, y1, x1 + r, y1);
+          ctx.closePath();
+          return { px, py, blockSize };
+        }
+
+        function drawPixelTile(x, y, palette) {
+          const inset = Math.max(2, Math.round(state.cellSize * 0.12));
+          const radius = Math.max(2, Math.round(state.cellSize * 0.18));
+          const innerInset = inset + 1;
+
+          ctx.save();
+          ctx.shadowColor = palette.shadow;
+          ctx.shadowBlur = 0;
+          ctx.shadowOffsetX = 1;
+          ctx.shadowOffsetY = 1;
+          beginBlockPath(x, y, state.cellSize, inset, radius);
+          ctx.fillStyle = palette.edge;
+          ctx.fill();
+          ctx.shadowColor = "transparent";
+          beginBlockPath(x, y, state.cellSize, innerInset, Math.max(1, radius - 1));
+          ctx.fillStyle = palette.fill;
+          ctx.fill();
+          if (palette.highlight) {
+            const highlightInset = innerInset + 2;
+            beginBlockPath(x, y, state.cellSize, highlightInset, Math.max(1, radius - 2));
+            ctx.fillStyle = palette.highlight;
+            ctx.fill();
+          }
+          ctx.restore();
+        }
+
+        function formatTime(value) {
+          return value.toFixed(1) + "s";
+        }
+
+        function getShellInnerWidth() {
+          if (!boardShell) {
+            return window.innerWidth - 80;
+          }
+          const styles = window.getComputedStyle(boardShell);
+          const paddingX =
+            (Number.parseFloat(styles.paddingLeft) || 0) +
+            (Number.parseFloat(styles.paddingRight) || 0);
+          const width = boardShell.clientWidth - paddingX;
+          if (!Number.isFinite(width) || width <= 0) {
+            return window.innerWidth - 80;
+          }
+          return Math.max(240, width);
+        }
+
+        function cellKey(x, y) {
+          return x + "," + y;
+        }
+
+        function addCell(x, y) {
+          const key = cellKey(x, y);
+          if (!state.cells.has(key)) {
+            state.cells.add(key);
+            playSound('place');
+            state.roundStats.placements += 1;
+            if (state.targetSet.has(key)) {
+              state.roundStats.correctPlacements += 1;
+            }
+            return key;
+          }
+          return null;
+        }
+
+        function removeCells(keys) {
+          keys.forEach((key) => state.cells.delete(key));
+        }
+
+        function resetDrawing() {
+          state.cells.clear();
+          state.history = [];
+        }
+
+        function selectShape() {
+          const levelDifficulty = Math.min(5, Math.max(1, state.level));
+          let matching = SHAPES.filter((shape) => shape.difficulty === levelDifficulty && !state.usedShapes.has(shape.name));
+          
+          if (state.randomPhase || state.infiniteMode || state.level > MAX_LEVEL) {
+            return SHAPES[Math.floor(Math.random() * SHAPES.length)];
+          }
+          
+          if (matching.length === 0) {
+            matching = SHAPES.filter((shape) => !state.usedShapes.has(shape.name));
+          }
+          if (matching.length === 0) {
+            matching = SHAPES;
+          }
+          
+          const index = Math.floor(Math.random() * matching.length);
+          return matching[index];
+        }
+
+        function refillDifficultyQueue() {
+          const arr = [1, 2, 3, 4, 5];
+          // Fisher-Yates shuffle
+          for (let i = arr.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [arr[i], arr[j]] = [arr[j], arr[i]];
+          }
+          state.difficultyQueue = arr;
+        }
+
+        function getTimeLimit(shape) {
+          const levelScale = Math.pow(0.92, state.level - 1);
+          const difficultyScale = DIFFICULTY_TIME_SCALE[state.timerSpeedMode] || DIFFICULTY_TIME_SCALE[1];
+          const raw = shape.baseTime * levelScale * difficultyScale;
+          return Math.max(8, Math.round(raw * 10) / 10);
+        }
+
+        function applyShape(shape) {
+          const bounds = shape.cells.reduce(
+            (acc, cell) => {
+              acc.maxX = Math.max(acc.maxX, cell[0]);
+              acc.maxY = Math.max(acc.maxY, cell[1]);
+              return acc;
+            },
+            { maxX: 0, maxY: 0 }
+          );
+
+          const width = bounds.maxX + 1;
+          const height = bounds.maxY + 1;
+          const originX = Math.floor((state.cols - width) / 2);
+          const originY = Math.floor((state.rows - height) / 2);
+
+          state.activeShape = shape;
+          state.targetName = shape.name;
+          state.difficulty = shape.difficulty;
+          state.level = shape.difficulty;
+          const timeLimit = getTimeLimit(shape);
+          state.timeTotal = timeLimit;
+          state.timeLeft = timeLimit;
+          state.targetSet = new Set(
+            shape.cells.map((cell) => cellKey(originX + cell[0], originY + cell[1]))
+          );
+          const snapX = originX + Math.floor(width / 2);
+          const snapY = originY + Math.floor(height / 2);
+          state.cursor = { x: snapX, y: snapY };
+          state.cursorVisual = { x: snapX, y: snapY };
+        }
+
+        function stopTimer() {
+          if (state.timerId) {
+            window.clearInterval(state.timerId);
+          }
+          state.timerId = null;
+          state.timerRunning = false;
+          stopCountdown();
+        }
+
+        function stopCountdown() {
+          if (state.countdownId) {
+            window.clearInterval(state.countdownId);
+          }
+          state.countdownId = null;
+          state.countdownActive = false;
+          countdownPopup.classList.remove("is-visible");
+          countdownPopup.hidden = true;
+        }
+
+        function startTimer() {
+          if (state.timerRunning) {
+            return;
+          }
+          state.timerRunning = true;
+          state.lastTick = performance.now();
+          state.timerId = window.setInterval(() => {
+            const now = performance.now();
+            const delta = (now - state.lastTick) / 1000;
+            state.lastTick = now;
+            state.timeLeft = Math.max(0, state.timeLeft - delta);
+            if (state.timeLeft <= 0) {
+              state.timeLeft = 0;
+              handleTimeUp();
+            }
+            updateHud();
+          }, TICK_MS);
+        }
+
+        function shouldStartRoundCountdown() {
+          return !!state.activeShape && state.level > 1;
+        }
+
+        function startRoundCountdown() {
+          stopCountdown();
+          state.countdownActive = true;
+          let count = 3;
+          setStatus(count + "... Press Space to start.", "warn");
+          countdownNumber.textContent = String(count);
+          countdownPopup.hidden = false;
+          requestAnimationFrame(() => countdownPopup.classList.add("is-visible"));
+          startTimer();
+          state.countdownId = window.setInterval(() => {
+            count -= 1;
+            if (count >= 1) {
+              setStatus(count + "... Press Space to start.", "warn");
+              countdownNumber.textContent = String(count);
+              return;
+            }
+            stopCountdown();
+            if (!state.drawing && !state.statsVisible && state.activeShape) {
+              setStatus("Go! Press Space to start drawing.", "live");
+            }
+          }, 1000);
+        }
+
+        function populateShapePicker() {
+          shapePicker.replaceChildren(); // clear first
+          const defaultOpt = document.createElement("option");
+          defaultOpt.value = "";
+          defaultOpt.selected = true;
+          defaultOpt.disabled = true;
+          defaultOpt.textContent = "Choose a doodle...";
+          shapePicker.appendChild(defaultOpt);
+
+          const sorted = [...SHAPES].sort((a, b) => a.difficulty - b.difficulty || a.name.localeCompare(b.name));
+          sorted.forEach((shape) => {
+            const option = document.createElement("option");
+            option.value = shape.name;
+            option.textContent = shape.name + ` (Difficulty ${shape.difficulty})`;
+            shapePicker.appendChild(option);
+          });
+        }
+
+        function pickShapeByName(name) {
+          if (!name) {
+            return null;
+          }
+          return SHAPES.find((shape) => shape.name === name) || null;
+        }
+
+        // Keep focused item styling state
+        function updatePickerOutline() {
+          shapePicker.dataset.selected = shapePicker.value ? "true" : "false";
+        }
+
+        function syncPickLockState() {
+          const isPick = state.pickMode === "pick";
+          shapePicker.hidden = false;
+          shapePicker.disabled = !isPick;
+          pickerLock.hidden = true;
+          pickerLock.textContent = "";
+          tabPick.disabled = !state.pickUnlocked || isPick;
+        }
+
+        function clearTarget() {
+          state.activeShape = null;
+          state.targetSet = new Set();
+          state.targetName = "--";
+          state.timeLeft = 0;
+          state.timeTotal = 0;
+          const midX = Math.floor(state.cols / 2);
+          const midY = Math.floor(state.rows / 2);
+          state.cursor = { x: midX, y: midY };
+          state.cursorVisual = { x: midX, y: midY };
+          resetDrawing();
+        }
+
+        function updateDifficultyButtons() {
+          difficultyButtons.forEach((button) => {
+            const buttonDifficulty = Number(button.dataset.difficulty);
+            const isActive = buttonDifficulty === state.timerSpeedMode;
+            button.disabled = !state.pickUnlocked;
+            button.classList.toggle("is-active", isActive);
+            button.setAttribute("aria-pressed", String(isActive));
+            button.style.opacity = state.pickUnlocked || isActive ? "1" : "0.3";
+            button.style.cursor = state.pickUnlocked ? "pointer" : "default";
+          });
+        }
+
+        function setControlScheme(scheme) {
+          if (!MOVEMENT_KEYS[scheme]) {
+            return;
+          }
+          state.controlScheme = scheme;
+          controlsWasd.classList.toggle("is-active", scheme === "wasd");
+          controlsArrows.classList.toggle("is-active", scheme === "arrows");
+          controlsWasd.setAttribute("aria-pressed", String(scheme === "wasd"));
+          controlsArrows.setAttribute("aria-pressed", String(scheme === "arrows"));
+          moveKeys.forEach((key) => {
+            key.textContent = scheme === "arrows" ? key.dataset.arrows : key.dataset.wasd;
+          });
+        }
+
+        function releaseControlFocus() {
+          const activeElement = document.activeElement;
+          if (activeElement && activeElement.closest && activeElement.closest(".tips")) {
+            activeElement.blur();
+          }
+        }
+
+        function handleControlsPanelKeydown(event) {
+          if (event.code === "Tab" || event.code.startsWith("Arrow")) {
+            event.preventDefault();
+            releaseControlFocus();
+          }
+        }
+
+        // Set pointer settings
+        function makeControlsMouseOnly() {
+          controlPanelButtons.forEach((button) => {
+            button.tabIndex = -1;
+          });
+        }
+
+        function getAccuracy(stats) {
+          if (!stats.placements) {
+            return 100;
+          }
+          return Math.round((stats.correctPlacements / stats.placements) * 100);
+        }
+
+        function getRoundSummary(finishTime) {
+          return {
+            time: finishTime,
+            undos: state.roundStats.undos,
+            placements: state.roundStats.placements,
+            correctPlacements: state.roundStats.correctPlacements,
+            accuracy: getAccuracy(state.roundStats),
+            actions: state.roundStats.actions
+          };
+        }
+
+        function recordCompletedRound(summary) {
+          state.sessionStats.rounds += 1;
+          state.sessionStats.totalTime += summary.time;
+          state.sessionStats.undos += summary.undos;
+          state.sessionStats.placements += summary.placements;
+          state.sessionStats.correctPlacements += summary.correctPlacements;
+          state.sessionStats.actions += summary.actions;
+        }
+
+        function roundStatsRows(summary) {
+          const totalTime = Math.max(0.1, summary.time);
+          const apm = Math.round((summary.actions / totalTime) * 60);
+          const pps = (summary.placements / totalTime).toFixed(1);
+          const efficiency = Math.round((summary.placements / Math.max(1, summary.actions)) * 100);
+
+          return [
+            { label: "Time", value: formatTime(summary.time) },
+            { label: "APM", value: String(apm) },
+            { label: "Pcs/Sec", value: String(pps) },
+            { label: "Accuracy", value: summary.accuracy + "%" },
+            { label: "Undos", value: String(summary.undos) }
+            ,{ label: "Efficiency", value: efficiency + "%" }
+          ];
+        }
+
+        function sessionStatsRows() {
+          const rounds = Math.max(1, state.sessionStats.rounds);
+          const averageTime = state.sessionStats.totalTime / rounds;
+          const accuracy = getAccuracy(state.sessionStats);
+          const totalTime = Math.max(0.1, state.sessionStats.totalTime);
+          const apm = Math.round((state.sessionStats.actions / totalTime) * 60);
+          const pps = (state.sessionStats.placements / totalTime).toFixed(1);
+          const efficiency = Math.round((state.sessionStats.placements / Math.max(1, state.sessionStats.actions)) * 100);
+
+          return [
+            { label: "Avg Time", value: formatTime(averageTime) },
+            { label: "APM", value: String(apm) },
+            { label: "Pcs/Sec", value: String(pps) },
+            { label: "Accuracy", value: accuracy + "%" },
+            { label: "Undos", value: String(state.sessionStats.undos) }
+            ,{ label: "Efficiency", value: efficiency + "%" }
+          ];
+        }
+
+        function loadTarget(shape, message, tone) {
+          if (!shape) {
+            return;
+          }
+          applyShape(shape);
+          prepareRound(message, tone);
+        }
+
+        function getPickedShape() {
+          if (state.pickMode !== "pick") {
+            return null;
+          }
+          return pickShapeByName(shapePicker.value);
+        }
+
+        function setPickMode(mode) {
+          const isPick = mode === "pick";
+          hideFinishPopup();
+          state.pickMode = mode;
+          tabRandom.classList.toggle("is-active", !isPick);
+          tabPick.classList.toggle("is-active", isPick);
+          tabRandom.setAttribute("aria-selected", String(!isPick));
+          tabPick.setAttribute("aria-selected", String(isPick));
+          tabRandom.disabled = !isPick;
+          pickerRow.hidden = !isPick;
+          syncPickLockState();
+
+          stopTimer();
+          resetDrawing();
+          state.drawing = false;
+          state.infiniteMode = false;
+          state.drawTransition = 0;
+
+          if (isPick) {
+            const pickedShape = getPickedShape();
+            if (pickedShape) {
+              loadTarget(
+                pickedShape,
+                "Target ready: " + pickedShape.name + ". Hold Space to start.",
+                "idle"
+              );
+              return;
+            }
+            clearTarget();
+            setStatus("Pick a Doodle from the list.", "idle");
+            updateHud();
+            drawBoard();
+            return;
+          }
+
+          state.pickLockedShape = "";
+          shapePicker.value = "";
+          updatePickerOutline();
+          syncPickLockState();
+          tabPick.title = state.pickUnlocked ? "" : "Beat Hard mode to unlock!";
+          state.level = 1;
+          state.sessionStats = createSessionStats();
+          const nextShape = selectShape();
+          loadTarget(
+            nextShape,
+            "Target ready: " + nextShape.name + ". Hold Space to start.",
+            "idle"
+          );
+        }
+
+        function handleShapePick() {
+          if (state.pickMode !== "pick") {
+            shapePicker.value = "";
+            updatePickerOutline();
+            return;
+          }
+          const selected = pickShapeByName(shapePicker.value);
+          updatePickerOutline();
+          if (!selected) {
+            return;
+          }
+          state.sessionStats = createSessionStats();
+          loadTarget(
+            selected,
+            "Doodle selected: " + selected.name + ". Hold Space to start.",
+            "idle"
+          );
+        }
+
+        function prepareRound(message, tone) {
+          resetDrawing();
+          state.roundStats = createRoundStats();
+          state.drawing = false;
+          state.drawTransition = 0;
+          cancelCursorMove();
+          state.statsVisible = false;
+          state.finishPopupMode = null;
+          stopTimer();
+          stopCountdown();
+          if (shouldStartRoundCountdown()) {
+            startRoundCountdown();
+          } else {
+            setStatus(message, tone);
+          }
+          updateHud();
+          drawBoard();
+        }
+
+        function beginDrawingHold() {
+          if (state.drawing || !state.activeShape || state.statsVisible) {
+            return;
+          }
+
+          if (state.countdownActive) {
+            setStatus("Wait for the countdown, then press Space to start.", "warn");
+            return;
+          }
+
+          stopCountdown();
+          state.drawing = true;
+          animateDrawTransition(1);
+          startTimer();
+          const addedCells = [];
+          const key = addCell(state.cursor.x, state.cursor.y);
+          if (key) {
+            addedCells.push(key);
+          }
+
+          state.history.push({
+            type: "hold-start",
+            addedCells
+          });
+          setStatus("Drawing: hold Space and move to match the target.", "live");
+          updateHud();
+        }
+
+        function endDrawingHold() {
+          if (!state.drawing) {
+            return;
+          }
+
+          state.drawing = false;
+          animateDrawTransition(0);
+          if (isMatch()) {
+            handleSuccess();
+            return;
+          }
+
+          setStatus("Space released. Hold it again to keep drawing.", "idle");
+          updateHud();
+        }
+
+        function isMatch() {
+          if (state.cells.size !== state.targetSet.size) {
+            return false;
+          }
+          for (const key of state.cells) {
+            if (!state.targetSet.has(key)) {
+              return false;
+            }
+          }
+          return true;
+        }
+
+        function handleSuccess() {
+          stopTimer();
+          state.drawing = false;
+          state.drawTransition = 0;
+          const finishTime = Math.max(0, state.timeTotal - state.timeLeft);
+          const summary = getRoundSummary(finishTime);
+          recordCompletedRound(summary);
+          try { playSound('celebrate', { highOnly: !!state.randomPhase }); } catch (e) { /* ignore audio errors */ }
+          setStatus(state.pickMode === "pick" ? state.activeShape.name + " complete." : "Difficulty complete.", "done");
+          updateHud();
+          drawBoard();
+          state.usedShapes.add(state.activeShape.name);
+
+          if (state.pickMode === "random" && state.level === MAX_LEVEL) {
+            if (state.timerSpeedMode === 1) {
+              showFinishPopup({
+                mode: "next",
+                label: "Difficulty " + state.level + " Complete",
+                message: "Done in " + formatTime(finishTime),
+                stats: roundStatsRows(summary),
+                allowActions: true
+              });
+              return;
+            } else if (state.timerSpeedMode === 5) {
+              state.pickUnlocked = true;
+              tabPick.textContent = "Pick a Doodle";
+              tabPick.title = "";
+              syncPickLockState();
+              updateDifficultyButtons();
+              showFinishPopup({
+                mode: "victory",
+                label: "Congratulations!",
+                message: "You are a doodle master! You've unlocked 'Pick a Doodle', try out the other pictures!",
+                stats: roundStatsRows(summary),
+                allowActions: true
+              });
+              return;
+            }
+          }
+
+          showFinishPopup({
+            mode: "round",
+            label: state.pickMode === "pick" ? state.activeShape.name + " Complete" : "Difficulty " + state.level + " Complete",
+            message: "Done in " + formatTime(finishTime),
+            stats: roundStatsRows(summary),
+            duration: ROUND_STATS_MS,
+            onHide: () => {
+              if (state.pickMode === "random") {
+                state.level = Math.min(MAX_LEVEL, state.level + 1);
+              }
+              const pickedShape = getPickedShape();
+              const nextShape = pickedShape || selectShape();
+              loadTarget(
+                nextShape,
+                "Target ready: " + nextShape.name + ". Hold Space to start.",
+                "idle"
+              );
+            }
+          });
+        }
+
+        function handleTimeUp() {
+          stopTimer();
+          cancelCursorMove();
+          state.drawing = false;
+          state.drawTransition = 0;
+          
+          showFinishPopup({
+            mode: "fail",
+            label: "Game Over",
+            message: "Not everyone can be the best.",
+            stats: [],
+            allowActions: true
+          });
+        }
+
+        function resetCurrentRound() {
+          if (!state.activeShape || state.statsVisible) {
+            return;
+          }
+          loadTarget(
+            state.activeShape,
+            "Round reset: " + state.activeShape.name + ". Hold Space to start.",
+            "idle"
+          );
+        }
+
+        function restartRunFromBeginning() {
+          hideFinishPopup();
+          
+          state.pickMode = "random";
+          state.pickLockedShape = "";
+          tabRandom.classList.add("is-active");
+          tabPick.classList.remove("is-active");
+          tabRandom.setAttribute("aria-selected", "true");
+          tabPick.setAttribute("aria-selected", "false");
+          tabRandom.disabled = true;
+          tabPick.disabled = !state.pickUnlocked;
+          pickerRow.hidden = true;
+          shapePicker.value = "";
+          updatePickerOutline();
+          syncPickLockState();
+          
+          state.level = 1;
+          state.timerSpeedMode = 1;
+          state.usedShapes.clear();
+          state.infiniteMode = false;
+          state.randomPhase = false;
+          state.hardChallengeMode = false;
+          state.sessionStats = createSessionStats();
+          
+          const nextShape = selectShape();
+          loadTarget(
+            nextShape,
+            "Target ready: " + nextShape.name + ". Hold Space to start.",
+            "idle"
+          );
+        }
+
+        function continueInfiniteRun() {
+          if (state.finishPopupMode !== "final" || state.level < MAX_LEVEL || state.sessionStats.rounds < MAX_LEVEL) {
+            return;
+          }
+          const harder = window.confirm("Take a harder infinite challenge? This will increase the timer speed.");
+          hideFinishPopup();
+          state.hardChallengeMode = harder;
+          state.level = harder ? (MAX_LEVEL + 1) : MAX_LEVEL;
+          state.randomPhase = true;
+          state.infiniteMode = true;
+          const nextShape = selectShape();
+          loadTarget(
+            nextShape,
+            "Infinite mode: " + nextShape.name + ". Hold Space to start.",
+            "done"
+          );
+        }
+
+        function setDifficulty(difficulty) {
+          const nextDifficulty = Math.max(1, Math.min(MAX_LEVEL, difficulty));
+          if (!state.pickUnlocked || nextDifficulty === state.timerSpeedMode) {
+            return;
+          }
+          hideFinishPopup();
+          stopTimer();
+          state.drawing = false;
+          state.drawTransition = 0;
+          state.timerSpeedMode = nextDifficulty;
+          state.level = 1;
+          state.infiniteMode = false;
+          state.sessionStats = createSessionStats();
+
+          const pickedShape = getPickedShape();
+          if (state.pickMode === "pick" && !pickedShape) {
+            clearTarget();
+            setStatus("Mode changed to " + (nextDifficulty === 5 ? "Hard" : "Easy") + ". Pick a Doodle from the list.", "warn");
+            updateHud();
+            drawBoard();
+            return;
+          }
+
+          const nextShape = pickedShape || selectShape();
+          loadTarget(
+            nextShape,
+            "Mode changed to " + (nextDifficulty === 5 ? "Hard" : "Easy") + ". Target ready: " + nextShape.name + ". Hold Space to start.",
+            "warn"
+          );
+        }
+
+        function moveCursor(dx, dy) {
+          if (!state.activeShape || state.statsVisible) {
+            return;
+          }
+          const from = { x: state.cursor.x, y: state.cursor.y };
+          const toX = Math.max(0, Math.min(state.cols - 1, from.x + dx));
+          const toY = Math.max(0, Math.min(state.rows - 1, from.y + dy));
+          if (toX === from.x && toY === from.y) {
+            return;
+          }
+
+          playSound('move');
+
+          const addedCells = [];
+          if (state.drawing) {
+            const key = addCell(toX, toY);
+            if (key) {
+              addedCells.push(key);
+            }
+          }
+
+          state.cursor = { x: toX, y: toY };
+          state.roundStats.actions += 1;
+          
+          if (state.drawing) {
+            state.history.push({ type: "move", from, addedCells });
+          }
+          updateHud();
+          // Animate cursor gliding from previous position to new position
+          animateCursorMove(toX, toY);
+        }
+
+        function undo() {
+          if (!state.activeShape || state.statsVisible) {
+            return;
+          }
+          let action = null;
+          while (state.history.length) {
+            const candidate = state.history.pop();
+            if (candidate.type === "move") {
+              action = candidate;
+              break;
+            }
+            if (candidate.type === "hold-start" && candidate.addedCells.length) {
+              action = candidate;
+              break;
+            }
+          }
+
+          if (!action) {
+            setStatus("No drawing steps to undo.", "warn");
+            updateHud();
+            return;
+          }
+
+          playSound('undo');
+
+          if (action.type === "move") {
+            state.cursor = { x: action.from.x, y: action.from.y };
+            // Move smoothly back to the previous position
+            animateCursorMove(action.from.x, action.from.y);
+            removeCells(action.addedCells);
+          } else if (action.type === "hold-start") {
+            removeCells(action.addedCells);
+          }
+
+          state.roundStats.undos += 1;
+          state.roundStats.actions += 1;
+          updateHud();
+          drawBoard();
+        }
+
+        function drawBoard() {
+          const size = state.cellSize;
+          const width = state.cols * size;
+          const height = state.rows * size;
+
+          ctx.fillStyle = "#f7f9fb";
+          ctx.fillRect(0, 0, width, height);
+
+          ctx.strokeStyle = "rgba(31, 27, 22, 0.06)";
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          for (let x = 0; x <= state.cols; x += 1) {
+            const xpos = x * size;
+            ctx.moveTo(xpos, 0);
+            ctx.lineTo(xpos, height);
+          }
+          for (let y = 0; y <= state.rows; y += 1) {
+            const ypos = y * size;
+            ctx.moveTo(0, ypos);
+            ctx.lineTo(width, ypos);
+          }
+          ctx.stroke();
+
+          if (state.targetSet.size > 0) {
+            ctx.save();
+            ctx.fillStyle = "rgba(10, 123, 131, 0.10)";
+            state.targetSet.forEach((key) => {
+              const parts = key.split(",");
+              const x = Number(parts[0]);
+              const y = Number(parts[1]);
+              drawPixelTile(x, y, {
+                edge: "rgba(10, 123, 131, 0.18)",
+                fill: "rgba(10, 123, 131, 0.10)",
+                highlight: "rgba(255, 255, 255, 0.10)",
+                shadow: "rgba(10, 123, 131, 0.12)"
+              });
+            });
+            ctx.restore();
+          }
+
+          state.cells.forEach((key) => {
+            const parts = key.split(",");
+            const x = Number(parts[0]);
+            const y = Number(parts[1]);
+            const isCorrect = state.targetSet.has(key);
+            drawPixelTile(x, y, isCorrect ? {
+              edge: "rgba(0, 0, 0, 0.18)",
+              fill: "#0a7b83",
+              highlight: "rgba(255, 255, 255, 0.16)",
+              shadow: "rgba(0, 0, 0, 0.20)"
+            } : {
+              edge: "rgba(131, 26, 26, 0.42)",
+              fill: "rgba(198, 56, 56, 0.92)",
+              highlight: "rgba(255, 220, 220, 0.20)",
+              shadow: "rgba(131, 26, 26, 0.22)"
+            });
+          });
+
+          const t = state.drawTransition;
+          const cvx = state.cursorVisual.x;
+          const cvy = state.cursorVisual.y;
+          drawPixelTile(cvx, cvy, {
+            edge: lerpColor([31, 27, 22, 0.18], [242, 107, 29, 0.45], t),
+            fill: lerpColor([31, 27, 22, 0.12], [242, 107, 29, 0.25], t),
+            highlight: lerpColor([255, 255, 255, 0.08], [255, 255, 255, 0.16], t),
+            shadow: "rgba(0, 0, 0, 0.18)"
+          });
+
+          ctx.strokeStyle = lerpColor([31, 27, 22, 1], [242, 107, 29, 1], t);
+          ctx.lineWidth = 2;
+          ctx.lineCap = "round";
+          ctx.lineJoin = "round";
+          
+          const cx = Math.round(cvx * size + 2);
+          const cy = Math.round(cvy * size + 2);
+          const cw = size - 4;
+          const ch = size - 4;
+          // Shorter corner outline length (about 15% of cell size)
+          const cLen = Math.max(3, Math.round(size * 0.15));
+
+          ctx.beginPath();
+          // Top-Left corner
+          ctx.moveTo(cx, cy + cLen);
+          ctx.lineTo(cx, cy);
+          ctx.lineTo(cx + cLen, cy);
+          // Top-Right corner
+          ctx.moveTo(cx + cw - cLen, cy);
+          ctx.lineTo(cx + cw, cy);
+          ctx.lineTo(cx + cw, cy + cLen);
+          // Bottom-Right corner
+          ctx.moveTo(cx + cw, cy + ch - cLen);
+          ctx.lineTo(cx + cw, cy + ch);
+          ctx.lineTo(cx + cw - cLen, cy + ch);
+          // Bottom-Left corner
+          ctx.moveTo(cx + cLen, cy + ch);
+          ctx.lineTo(cx, cy + ch);
+          ctx.lineTo(cx, cy + ch - cLen);
+          ctx.stroke();
+        }
+
+        function resizeBoard() {
+          const availableWidth = getShellInnerWidth();
+          const fitCellSize = Math.floor(availableWidth / state.cols);
+          const cellSize = Math.max(16, Math.min(32, fitCellSize));
+
+          state.cellSize = cellSize;
+          const width = state.cols * cellSize;
+          const height = state.rows * cellSize;
+          const dpr = window.devicePixelRatio || 1;
+
+          canvas.width = Math.floor(width * dpr);
+          canvas.height = Math.floor(height * dpr);
+          canvas.style.width = width + "px";
+          canvas.style.height = height + "px";
+          ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+          drawBoard();
+        }
+        drawBoard();
+
+        function getMovementDelta(code) {
+          const keyMap = MOVEMENT_KEYS[state.controlScheme];
+          return keyMap ? keyMap[code] : null;
+        }
+
+        function handleKeydown(event) {
+          const code = event.code;
+          const movementDelta = getMovementDelta(code);
+          const gameplayCodes = [
+            "KeyW",
+            "KeyA",
+            "KeyS",
+            "KeyD",
+            "ArrowUp",
+            "ArrowLeft",
+            "ArrowDown",
+            "ArrowRight",
+            "Space",
+            "KeyQ",
+            "KeyR"
+          ];
+          if (gameplayCodes.includes(code)) {
+            event.preventDefault();
+          }
+
+          if (state.statsVisible) {
+            if (code === "KeyR" && state.finishPopupMode === "final") {
+              restartRunFromBeginning();
+            }
+            return;
+          }
+
+          if (code === "Space") {
+            if (event.repeat) {
+              return;
+            }
+            beginDrawingHold();
+            return;
+          }
+
+          if (code === "KeyQ") {
+            if (event.repeat) {
+              return;
+            }
+            undo();
+            return;
+          }
+
+          if (code === "KeyR") {
+            if (event.repeat) {
+              return;
+            }
+            resetCurrentRound();
+            return;
+          }
+
+          if (movementDelta) {
+            moveCursor(movementDelta[0], movementDelta[1]);
+          }
+        }
+
+        function handleKeyup(event) {
+          if (event.code === "Space") {
+            event.preventDefault();
+            if (!state.statsVisible) {
+              endDrawingHold();
+            }
+          }
+        }
+
+        window.addEventListener("keydown", handleKeydown);
+        window.addEventListener("keyup", handleKeyup);
+        window.addEventListener("resize", resizeBoard);
+        tabRandom.addEventListener("click", () => setPickMode("random"));
+        tabPick.addEventListener("click", () => setPickMode("pick"));
+        shapePicker.addEventListener("change", handleShapePick);
+        if (controlsPanel) {
+          controlsPanel.addEventListener("keydown", handleControlsPanelKeydown);
+        }
+        controlsWasd.addEventListener("click", () => {
+          setControlScheme("wasd");
+          releaseControlFocus();
+        });
+        controlsArrows.addEventListener("click", () => {
+          setControlScheme("arrows");
+          releaseControlFocus();
+        });
+        restartRunButton.addEventListener("click", restartRunFromBeginning);
+        infiniteRunButton.addEventListener("click", continueInfiniteRun);
+        if (nextRunButton) {
+          nextRunButton.addEventListener("click", () => {
+            if (state.finishPopupMode === "next") {
+              hideFinishPopup();
+              setTimeout(() => {
+                showFinishPopup({
+                  mode: "comical",
+                  label: "Woah there!",
+                  message: "You're getting the hang of it, but can you handle more?",
+                  stats: [],
+                  allowActions: true
+                });
+              }, 150);
+            }
+          });
+        }
+        if (comicalOkButton) {
+          comicalOkButton.addEventListener("click", () => {
+            if (state.finishPopupMode === "comical") {
+              hideFinishPopup();
+              state.timerSpeedMode = 5;
+              state.level = 1;
+              state.sessionStats = createSessionStats(); // Reset session stats for the hard loop
+              const pickedShape = getPickedShape();
+              const nextShape = pickedShape || selectShape();
+              loadTarget(
+                nextShape,
+                "Target ready: " + nextShape.name + ". Hold Space to start.",
+                "idle"
+              );
+            }
+          });
+        }
+        difficultyButtons.forEach((button) => {
+          button.addEventListener("click", () => {
+            setDifficulty(Number(button.dataset.difficulty));
+            releaseControlFocus();
+          });
+        });
+
+        populateShapePicker();
+        updatePickerOutline();
+        makeControlsMouseOnly();
+        setControlScheme("wasd");
+        setPickMode("random");
+        resizeBoard();
+      })();
+    </script>
+  </body>
+</html>
