@@ -723,6 +723,9 @@
       <header class="hero">
         <h1 class="title">Doodle Lab</h1>
         <p class="subtitle">Hold space and press WASD or Arrow keys to match the template drawing before the timer expires.</p>
+        <p style="color:#dc2626;font-size:0.9rem;font-weight:600;margin:0;">
+⚠ If WASD movement is not responding, refresh the page.
+</p>
       </header>
       <section class="panel">
         <div class="board-shell">
@@ -2850,23 +2853,25 @@ window.addEventListener('focus', () => {
 document.addEventListener('pointerdown', () => {
   setTimeout(() => canvas && canvas.focus(), 0);
 }, true);
+// Persistent focus fix for GitHub Pages
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) {
+    setTimeout(() => canvas && canvas.focus(), 50);
+  }
+});
+
+window.addEventListener('focus', () => {
+  setTimeout(() => canvas && canvas.focus(), 50);
+});
+
+document.addEventListener('pointerdown', () => {
+  setTimeout(() => canvas && canvas.focus(), 0);
+}, true);
+
 document.addEventListener('DOMContentLoaded', () => {
-  ensureInitialTarget();
-
-  setTimeout(() => {
-    ensureInitialTarget();
-    canvas && canvas.focus();
-  }, 100);
-
-  setTimeout(() => {
-    ensureInitialTarget();
-    canvas && canvas.focus();
-  }, 500);
-
-  setTimeout(() => {
-    ensureInitialTarget();
-    canvas && canvas.focus();
-  }, 1000);
+  setTimeout(() => canvas && canvas.focus(), 100);
+  setTimeout(() => canvas && canvas.focus(), 500);
+  setTimeout(() => canvas && canvas.focus(), 1000);
 });
 
 </script>
