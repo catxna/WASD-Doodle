@@ -585,8 +585,8 @@
         gap: 8px;
       }
 
-      .difficulty-row {
-        grid-template-columns: repeat(5, minmax(0, 1fr));
+      #difficulty-buttons {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
       }
 
       .choice-button,
@@ -641,9 +641,11 @@
 
       .stats-grid {
         display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
         gap: 8px;
         margin-top: 12px;
+        justify-content: center;
+        align-items: stretch;
       }
 
       .stats-item {
@@ -754,6 +756,8 @@
                 <button class="finish-action primary" id="next-run" type="button" hidden>Next</button>
                 <button class="finish-action primary" id="comical-ok" type="button" hidden>Let's speed it up!
                 </button>
+                <button class="finish-action primary" id="ultimate-accept" type="button" hidden>Accept Ultimate</button>
+                <button class="finish-action" id="ultimate-decline" type="button" hidden>Decline</button>
                 <button class="finish-action primary" id="restart-run" type="button">Restart</button>
                 <button class="finish-action" id="infinite-run" type="button">Infinite</button>
               </div>
@@ -818,10 +822,11 @@
             <input type="range" id="volume-slider" min="0" max="1" step="0.01" value="1" style="width: 100%; accent-color: var(--accent);">
           </div>
           <div class="modifier">
-            <label>Timer Speed</label>
-            <div class="choice-row" id="difficulty-buttons" role="group" aria-label="Timer Speed">
+            <label>Time Speed</label>
+            <div class="choice-row" id="difficulty-buttons" role="group" aria-label="Time Speed">
               <button class="choice-button is-active" type="button" data-difficulty="1" aria-pressed="true" disabled style="opacity:1;cursor:default;">Easy</button>
               <button class="choice-button" type="button" data-difficulty="5" aria-pressed="false" disabled style="opacity:0.3;cursor:default;">Hard</button>
+              <button class="choice-button" type="button" data-difficulty="6" aria-pressed="false" disabled style="opacity:0.3;cursor:default;">Ultimate</button>
             </div>
 
           </div>
@@ -964,6 +969,8 @@
         const infiniteRunButton = document.getElementById("infinite-run");
         const nextRunButton = document.getElementById("next-run");
         const comicalOkButton = document.getElementById("comical-ok");
+        const ultimateAcceptButton = document.getElementById("ultimate-accept");
+        const ultimateDeclineButton = document.getElementById("ultimate-decline");
         const shapePicker = document.getElementById("shape-picker");
         const pickerLock = document.getElementById("picker-lock");
         const tabRandom = document.getElementById("tab-random");
@@ -986,13 +993,17 @@
         const ctx = canvas.getContext("2d", { alpha: false });
         const TICK_MS = 100;
         const MAX_LEVEL = 5;
-        const ROUND_STATS_MS = 1900;
+        const ULTIMATE_SPEED_MODE = 6;
+        const ULTIMATE_MISS_LIMIT = 3;
+        const ULTIMATE_RECENT_LIMIT = 10;
+        const ROUND_STATS_MS = 3500;
         const DIFFICULTY_TIME_SCALE = {
           1: 1.8,
           2: 1.5,
           3: 1.2,
           4: 1.0,
-          5: 0.85
+          5: 0.85,
+          6: 0.85
         };
         const MOVEMENT_KEYS = {
           wasd: {
@@ -1283,6 +1294,8 @@
             undos: 0,
             placements: 0,
             correctPlacements: 0,
+            ultimateMisses: 0,
+            ultimateWrongHighlights: 0,
             actions: 0
           };
         }
@@ -1292,6 +1305,8 @@
             undos: 0,
             placements: 0,
             correctPlacements: 0,
+            ultimateMisses: 0,
+            ultimateWrongHighlights: 0,
             actions: 0
           };
         }
@@ -1309,6 +1324,8 @@
           difficulty: 1,
           timerSpeedMode: 1,
           usedShapes: new Set(),
+          ultimateUnlocked: false,
+          ultimateShapeHistory: [],
           pickUnlocked: false,
           pickLockedShape: "",
           timeLeft: 0,
@@ -1490,6 +1507,7 @@
           const isFinal = options.mode === "final" && options.allowActions === true;
           const isNext = options.mode === "next" && options.allowActions === true;
           const isComical = options.mode === "comical" && options.allowActions === true;
+          const isUltimateOffer = options.mode === "ultimate-offer" && options.allowActions === true;
           const isVictory = options.mode === "victory" && options.allowActions === true;
           const isFail = options.mode === "fail" && options.allowActions === true;
           state.statsVisible = true;
@@ -1498,9 +1516,11 @@
           finishPopupText.textContent = options.message || "";
           renderStatsRows(options.stats);
           if (finishActions) {
-            finishActions.hidden = !(isFinal || isNext || isComical || isVictory || isFail);
+            finishActions.hidden = !(isFinal || isNext || isComical || isUltimateOffer || isVictory || isFail);
             if (nextRunButton) nextRunButton.hidden = !isNext;
             if (comicalOkButton) comicalOkButton.hidden = !isComical;
+            if (ultimateAcceptButton) ultimateAcceptButton.hidden = !isUltimateOffer;
+            if (ultimateDeclineButton) ultimateDeclineButton.hidden = !isUltimateOffer;
             if (restartRunButton) restartRunButton.hidden = !(isFinal || isVictory || isFail);
             if (infiniteRunButton) infiniteRunButton.hidden = !isFinal;
           }
@@ -1603,6 +1623,15 @@
             state.roundStats.placements += 1;
             if (state.targetSet.has(key)) {
               state.roundStats.correctPlacements += 1;
+            } else if (isUltimateMode()) {
+              state.roundStats.ultimateMisses += 1;
+              state.roundStats.ultimateWrongHighlights += 1;
+              if (state.roundStats.ultimateWrongHighlights >= ULTIMATE_MISS_LIMIT) {
+                handleUltimateFailure(
+                  state.roundStats.ultimateWrongHighlights,
+                  "wrong-highlights"
+                );
+              }
             }
             return key;
           }
@@ -1619,7 +1648,19 @@
         }
 
         function selectShape() {
-          const levelDifficulty = Math.min(5, Math.max(1, state.level));
+          const levelDifficulty = Math.min(MAX_LEVEL, Math.max(1, state.level));
+          if (isUltimateMode()) {
+            const recentShapes = new Set(state.ultimateShapeHistory.slice(-ULTIMATE_RECENT_LIMIT));
+            let ultimatePool = SHAPES.filter((shape) => shape.difficulty === levelDifficulty && !recentShapes.has(shape.name));
+            if (ultimatePool.length === 0) {
+              ultimatePool = SHAPES.filter((shape) => shape.difficulty === levelDifficulty);
+            }
+            if (ultimatePool.length === 0) {
+              ultimatePool = SHAPES;
+            }
+            return ultimatePool[Math.floor(Math.random() * ultimatePool.length)];
+          }
+
           let matching = SHAPES.filter((shape) => shape.difficulty === levelDifficulty && !state.usedShapes.has(shape.name));
           
           if (state.randomPhase || state.infiniteMode || state.level > MAX_LEVEL) {
@@ -1635,6 +1676,66 @@
           
           const index = Math.floor(Math.random() * matching.length);
           return matching[index];
+        }
+
+        function isUltimateMode() {
+          return state.timerSpeedMode === ULTIMATE_SPEED_MODE;
+        }
+
+        function getTimerSpeedName(mode) {
+          if (mode === ULTIMATE_SPEED_MODE) {
+            return "Ultimate";
+          }
+          return mode === 5 ? "Hard" : "Easy";
+        }
+
+        function getBlockErrorCount() {
+          let missing = 0;
+          let extra = 0;
+          state.targetSet.forEach((key) => {
+            if (!state.cells.has(key)) {
+              missing += 1;
+            }
+          });
+          state.cells.forEach((key) => {
+            if (!state.targetSet.has(key)) {
+              extra += 1;
+            }
+          });
+          return missing + extra;
+        }
+
+        function getMissingCount() {
+          let missing = 0;
+          state.targetSet.forEach((key) => {
+            if (!state.cells.has(key)) missing += 1;
+          });
+          return missing;
+        }
+
+        function getMisplacedCount() {
+          let extra = 0;
+          state.cells.forEach((key) => {
+            if (!state.targetSet.has(key)) extra += 1;
+          });
+          return extra;
+        }
+
+        function getUltimateCurrentMisses() {
+          return state.roundStats.ultimateWrongHighlights || 0;
+        }
+
+        function rememberUltimateShape(shape) {
+          if (!isUltimateMode() || !shape) {
+            return;
+          }
+          const lastShape = state.ultimateShapeHistory[state.ultimateShapeHistory.length - 1];
+          if (lastShape !== shape.name) {
+            state.ultimateShapeHistory.push(shape.name);
+          }
+          while (state.ultimateShapeHistory.length > ULTIMATE_RECENT_LIMIT) {
+            state.ultimateShapeHistory.shift();
+          }
         }
 
         function refillDifficultyQueue() {
@@ -1724,7 +1825,7 @@
         }
 
         function shouldStartRoundCountdown() {
-          return !!state.activeShape && state.level > 1;
+          return !!state.activeShape && (isUltimateMode() || state.level > 1);
         }
 
         function startRoundCountdown() {
@@ -1735,7 +1836,6 @@
           countdownNumber.textContent = String(count);
           countdownPopup.hidden = false;
           requestAnimationFrame(() => countdownPopup.classList.add("is-visible"));
-          startTimer();
           state.countdownId = window.setInterval(() => {
             count -= 1;
             if (count >= 1) {
@@ -1744,6 +1844,7 @@
               return;
             }
             stopCountdown();
+            startTimer();
             if (!state.drawing && !state.statsVisible && state.activeShape) {
               setStatus("Go! Press Space to start drawing.", "live");
             }
@@ -1806,11 +1907,13 @@
           difficultyButtons.forEach((button) => {
             const buttonDifficulty = Number(button.dataset.difficulty);
             const isActive = buttonDifficulty === state.timerSpeedMode;
-            button.disabled = !state.pickUnlocked;
+            const isUltimateButton = buttonDifficulty === ULTIMATE_SPEED_MODE;
+            const isUnlocked = state.pickUnlocked && (!isUltimateButton || state.ultimateUnlocked);
+            button.disabled = !isUnlocked;
             button.classList.toggle("is-active", isActive);
             button.setAttribute("aria-pressed", String(isActive));
-            button.style.opacity = state.pickUnlocked || isActive ? "1" : "0.3";
-            button.style.cursor = state.pickUnlocked ? "pointer" : "default";
+            button.style.opacity = isUnlocked || isActive ? "1" : "0.3";
+            button.style.cursor = isUnlocked ? "pointer" : "default";
           });
         }
 
@@ -1857,11 +1960,13 @@
         }
 
         function getRoundSummary(finishTime) {
+          const ultimateMisses = isUltimateMode() ? getUltimateCurrentMisses() : 0;
           return {
             time: finishTime,
             undos: state.roundStats.undos,
             placements: state.roundStats.placements,
             correctPlacements: state.roundStats.correctPlacements,
+            ultimateMisses,
             accuracy: getAccuracy(state.roundStats),
             actions: state.roundStats.actions
           };
@@ -1873,6 +1978,7 @@
           state.sessionStats.undos += summary.undos;
           state.sessionStats.placements += summary.placements;
           state.sessionStats.correctPlacements += summary.correctPlacements;
+          state.sessionStats.ultimateMisses += summary.ultimateMisses || 0;
           state.sessionStats.actions += summary.actions;
         }
 
@@ -1887,6 +1993,10 @@
             { label: "APM", value: String(apm) },
             { label: "Pcs/Sec", value: String(pps) },
             { label: "Accuracy", value: summary.accuracy + "%" },
+            ...(isUltimateMode() ? [
+              { label: "Misses", value: String(summary.ultimateMisses || 0) },
+              { label: "Total Misses", value: String(state.sessionStats.ultimateMisses) }
+            ] : []),
             { label: "Undos", value: String(summary.undos) }
             ,{ label: "Efficiency", value: efficiency + "%" }
           ];
@@ -1906,8 +2016,18 @@
             { label: "APM", value: String(apm) },
             { label: "Pcs/Sec", value: String(pps) },
             { label: "Accuracy", value: accuracy + "%" },
+            ...(isUltimateMode() || state.sessionStats.ultimateMisses ? [
+              { label: "Total Misses", value: String(state.sessionStats.ultimateMisses) }
+            ] : []),
             { label: "Undos", value: String(state.sessionStats.undos) }
             ,{ label: "Efficiency", value: efficiency + "%" }
+          ];
+        }
+
+        function ultimateFailStatsRows(currentMisses) {
+          return [
+            { label: "Current Misses", value: String(currentMisses) },
+            { label: "Total Misses", value: String(state.sessionStats.ultimateMisses + currentMisses) }
           ];
         }
 
@@ -1916,6 +2036,7 @@
             return;
           }
           applyShape(shape);
+          rememberUltimateShape(shape);
           prepareRound(message, tone);
         }
 
@@ -2054,11 +2175,27 @@
             return;
           }
 
+          if (isUltimateMode()) {
+            const errors = getBlockErrorCount();
+            const finishThreshold = Math.max(1, state.targetSet.size - ULTIMATE_MISS_LIMIT);
+            if (state.cells.size >= finishThreshold) {
+              handleUltimateFailure(errors);
+              return;
+            }
+            setStatus("Ultimate requires 100% completion and 3 or fewer misplaced blocks. Total misses: " + errors + ".", "warn");
+            updateHud();
+            return;
+          }
+
           setStatus("Space released. Hold it again to keep drawing.", "idle");
           updateHud();
         }
 
         function isMatch() {
+          if (isUltimateMode()) {
+            return state.cells.size > 0 && getMissingCount() === 0 && getMisplacedCount() <= ULTIMATE_MISS_LIMIT;
+          }
+
           if (state.cells.size !== state.targetSet.size) {
             return false;
           }
@@ -2068,6 +2205,20 @@
             }
           }
           return true;
+        }
+
+        function handleUltimateFailure(errors) {
+          stopTimer();
+          cancelCursorMove();
+          state.drawing = false;
+          state.drawTransition = 0;
+          showFinishPopup({
+            mode: "fail",
+            label: "Ultimate Failed",
+            message: "Too many total misses: " + errors + ". Keep it within 3 misplaced blocks.",
+            stats: ultimateFailStatsRows(errors),
+            allowActions: true
+          });
         }
 
         function handleSuccess() {
@@ -2095,14 +2246,15 @@
               return;
             } else if (state.timerSpeedMode === 5) {
               state.pickUnlocked = true;
+              state.ultimateUnlocked = true;
               tabPick.textContent = "Pick a Doodle";
               tabPick.title = "";
               syncPickLockState();
               updateDifficultyButtons();
               showFinishPopup({
-                mode: "victory",
-                label: "Congratulations!",
-                message: "You are a doodle master! You've unlocked 'Pick a Doodle', try out the other pictures!",
+                mode: "ultimate-offer",
+                label: "Hard Mode Complete!",
+                message: "Pick a Doodle is unlocked. Want the Ultimate Challenge? You can miss up to 3 blocks, with Hard's time limit.",
                 stats: roundStatsRows(summary),
                 allowActions: true
               });
@@ -2132,22 +2284,35 @@
         }
 
         function handleTimeUp() {
+          if (isUltimateMode() && isMatch()) {
+            handleSuccess();
+            return;
+          }
           stopTimer();
           cancelCursorMove();
           state.drawing = false;
           state.drawTransition = 0;
+          const currentMisses = isUltimateMode() ? getBlockErrorCount() : 0;
+          const message = isUltimateMode()
+            ? "Time's up with " + currentMisses + " total misses. Ultimate allows only 3 misplaced blocks."
+            : "Not everyone can be the best.";
           
           showFinishPopup({
             mode: "fail",
-            label: "Game Over",
-            message: "Not everyone can be the best.",
-            stats: [],
+            label: isUltimateMode() ? "Ultimate Failed" : "Game Over",
+            message,
+            stats: isUltimateMode() ? ultimateFailStatsRows(currentMisses) : [],
             allowActions: true
           });
         }
 
         function resetCurrentRound() {
           if (!state.activeShape || state.statsVisible) {
+            return;
+          }
+          if (isUltimateMode()) {
+            setStatus("No resets in Ultimate. Every move counts.", "warn");
+            updateHud();
             return;
           }
           loadTarget(
@@ -2207,9 +2372,32 @@
           );
         }
 
+        function startUltimateChallenge() {
+          hideFinishPopup();
+          state.ultimateUnlocked = true;
+          state.timerSpeedMode = ULTIMATE_SPEED_MODE;
+          state.level = MAX_LEVEL;
+          state.usedShapes.clear();
+          state.ultimateShapeHistory = [];
+          state.infiniteMode = false;
+          state.randomPhase = true;
+          state.sessionStats = createSessionStats();
+          updateDifficultyButtons();
+          const nextShape = selectShape();
+          loadTarget(
+            nextShape,
+            "Ultimate challenge: miss up to 3 blocks. Press Space after the countdown.",
+            "warn"
+          );
+        }
+
         function setDifficulty(difficulty) {
-          const nextDifficulty = Math.max(1, Math.min(MAX_LEVEL, difficulty));
-          if (!state.pickUnlocked || nextDifficulty === state.timerSpeedMode) {
+          const nextDifficulty = Number(difficulty);
+          const isUltimate = nextDifficulty === ULTIMATE_SPEED_MODE;
+          if (![1, 5, ULTIMATE_SPEED_MODE].includes(nextDifficulty)) {
+            return;
+          }
+          if (!state.pickUnlocked || (isUltimate && !state.ultimateUnlocked) || nextDifficulty === state.timerSpeedMode) {
             return;
           }
           hideFinishPopup();
@@ -2217,14 +2405,18 @@
           state.drawing = false;
           state.drawTransition = 0;
           state.timerSpeedMode = nextDifficulty;
-          state.level = 1;
+          state.level = isUltimate ? MAX_LEVEL : 1;
           state.infiniteMode = false;
+          state.randomPhase = isUltimate;
+          if (isUltimate) {
+            state.ultimateShapeHistory = [];
+          }
           state.sessionStats = createSessionStats();
 
           const pickedShape = getPickedShape();
           if (state.pickMode === "pick" && !pickedShape) {
             clearTarget();
-            setStatus("Mode changed to " + (nextDifficulty === 5 ? "Hard" : "Easy") + ". Pick a Doodle from the list.", "warn");
+            setStatus("Mode changed to " + getTimerSpeedName(nextDifficulty) + ". Pick a Doodle from the list.", "warn");
             updateHud();
             drawBoard();
             return;
@@ -2233,7 +2425,7 @@
           const nextShape = pickedShape || selectShape();
           loadTarget(
             nextShape,
-            "Mode changed to " + (nextDifficulty === 5 ? "Hard" : "Easy") + ". Target ready: " + nextShape.name + ". Hold Space to start.",
+            "Mode changed to " + getTimerSpeedName(nextDifficulty) + ". Target ready: " + nextShape.name + ". Hold Space to start.",
             "warn"
           );
         }
@@ -2548,6 +2740,27 @@
                 "Target ready: " + nextShape.name + ". Hold Space to start.",
                 "idle"
               );
+            }
+          });
+        }
+        if (ultimateAcceptButton) {
+          ultimateAcceptButton.addEventListener("click", () => {
+            if (state.finishPopupMode === "ultimate-offer") {
+              startUltimateChallenge();
+            }
+          });
+        }
+        if (ultimateDeclineButton) {
+          ultimateDeclineButton.addEventListener("click", () => {
+            if (state.finishPopupMode === "ultimate-offer") {
+              hideFinishPopup();
+              showFinishPopup({
+                mode: "victory",
+                label: "Ultimate Unlocked",
+                message: "No rush. You can still pick Ultimate in the Time Speed tab whenever you want.",
+                stats: [],
+                allowActions: true
+              });
             }
           });
         }
