@@ -317,6 +317,33 @@
         pointer-events: auto;
       }
 
+      .pause-popup {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -55%) scale(0.96);
+        min-width: 260px;
+        max-width: min(86vw, 420px);
+        padding: 16px 18px;
+        border-radius: 18px;
+        background: rgba(247, 241, 225, 0.95);
+        border: 1px solid rgba(10, 123, 131, 0.24);
+        box-shadow: 0 18px 40px rgba(0, 0, 0, 0.18);
+        color: var(--ink);
+        font-weight: 700;
+        text-align: center;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.18s ease, transform 0.18s ease;
+        z-index: 3;
+      }
+
+      .pause-popup.is-visible {
+        opacity: 1;
+        transform: translate(-50%, -55%) scale(1);
+        pointer-events: auto;
+      }
+
       .countdown-popup {
         position: absolute;
         left: 50%;
@@ -361,6 +388,7 @@
       }
 
       .finish-popup[hidden],
+      .pause-popup[hidden],
       .countdown-popup[hidden],
       .finish-actions[hidden],
       .stats-grid[hidden],
@@ -751,6 +779,13 @@
               <div class="countdown-number" id="countdown-number">3</div>
               <div class="countdown-help">Press Space after the countdown</div>
             </div>
+            <div class="pause-popup" id="pause-popup" aria-live="polite" hidden>
+              <span class="finish-label">Paused</span>
+              <div id="pause-popup-text">Press Esc to resume.</div>
+              <div class="finish-actions" id="pause-actions">
+                <button class="finish-action primary" id="pause-resume" type="button">Resume</button>
+              </div>
+            </div>
             <div class="finish-popup" id="finish-popup" aria-live="polite" hidden>
               <span class="finish-label" id="finish-popup-label">Round Complete</span>
               <div id="finish-popup-text">Done in --</div>
@@ -819,6 +854,10 @@
               <span class="keycap" style="--i: 6">R</span>
               <span class="control-text">Reset current round</span>
             </div>
+            <div class="control">
+              <span class="keycap wide" style="--i: 7">Esc</span>
+              <span class="control-text">Pause and resume the timer</span>
+            </div>
           </div>
           <div class="modifier">
             <label for="volume-slider">SFX Volume</label>
@@ -834,7 +873,7 @@
 
           </div>
           <p class="footer-note">
-            Tip: targets can be disconnected. Submitting early does not reset your drawing.
+            Tip: press Esc anytime to pause, then press Esc again to resume.
           </p>
         </aside>
       </section>
@@ -963,6 +1002,9 @@
         let difficultyChipTimer = null;
         const countdownPopup = document.getElementById("countdown-popup");
         const countdownNumber = document.getElementById("countdown-number");
+        const pausePopup = document.getElementById("pause-popup");
+        const pausePopupText = document.getElementById("pause-popup-text");
+        const pauseResumeButton = document.getElementById("pause-resume");
         const finishPopup = document.getElementById("finish-popup");
         const finishPopupLabel = document.getElementById("finish-popup-label");
         const finishPopupText = document.getElementById("finish-popup-text");
@@ -1022,7 +1064,7 @@ window.addEventListener("keydown", (e) => {
 const TICK_MS = 100;
         const MAX_LEVEL = 5;
         const ULTIMATE_SPEED_MODE = 6;
-        const ULTIMATE_MISS_LIMIT = 3;
+        const ULTIMATE_MISS_LIMIT = 2;
         const ULTIMATE_RECENT_LIMIT = 10;
         const ROUND_STATS_MS = 3500;
         const DIFFICULTY_TIME_SCALE = {
@@ -1048,6 +1090,7 @@ const TICK_MS = 100;
           }
         };
         let finishPopupTimer = null;
+        let pausePopupTimer = null;
 
         function patternToCells(pattern) {
           const cells = [];
@@ -1361,7 +1404,11 @@ const TICK_MS = 100;
           timerId: null,
           countdownId: null,
           countdownActive: false,
+          countdownValue: 0,
           timerRunning: false,
+          paused: false,
+          pauseShouldResumeTimer: false,
+          pauseShouldResumeCountdown: false,
           lastTick: 0,
           activeShape: null,
           targetSet: new Set(),
@@ -1481,6 +1528,25 @@ const TICK_MS = 100;
           }
         }
 
+        function updateStatusForCurrentState() {
+          if (state.statsVisible || state.paused) {
+            return;
+          }
+          if (state.countdownActive && state.countdownValue > 0) {
+            setStatus(state.countdownValue + "... Press Space to start.", "warn");
+            return;
+          }
+          if (state.drawing) {
+            setStatus("Drawing: hold Space and move to match the target.", "live");
+            return;
+          }
+          if (state.activeShape && state.timeLeft > 0) {
+            setStatus("Go! Press Space to start drawing.", "live");
+            return;
+          }
+          setStatus("Hold Space to start drawing.", "idle");
+        }
+
         function hideFinishPopup() {
           if (!finishPopup) {
             return;
@@ -1496,6 +1562,102 @@ const TICK_MS = 100;
           if (finishActions) {
             finishActions.hidden = true;
           }
+        }
+
+        function hidePausePopup() {
+          if (!pausePopup) {
+            return;
+          }
+          if (pausePopupTimer) {
+            window.clearTimeout(pausePopupTimer);
+            pausePopupTimer = null;
+          }
+          state.paused = false;
+          state.pauseShouldResumeTimer = false;
+          state.pauseShouldResumeCountdown = false;
+          pausePopup.classList.remove("is-visible");
+          pausePopup.hidden = true;
+        }
+
+        function clearTimerInterval() {
+          if (state.timerId) {
+            window.clearInterval(state.timerId);
+          }
+          state.timerId = null;
+        }
+
+        function clearCountdownInterval() {
+          if (state.countdownId) {
+            window.clearInterval(state.countdownId);
+          }
+          state.countdownId = null;
+        }
+
+        function startCountdownInterval() {
+          clearCountdownInterval();
+          state.countdownId = window.setInterval(() => {
+            state.countdownValue -= 1;
+            if (state.countdownValue >= 1) {
+              setStatus(state.countdownValue + "... Press Space to start.", "warn");
+              countdownNumber.textContent = String(state.countdownValue);
+              return;
+            }
+            stopCountdown();
+            startTimer();
+            if (!state.drawing && !state.statsVisible && state.activeShape) {
+              setStatus("Go! Press Space to start drawing.", "live");
+            }
+          }, 1000);
+        }
+
+        function pauseCurrentRound() {
+          if (!state.activeShape || state.statsVisible || state.paused) {
+            return;
+          }
+          state.paused = true;
+          state.pauseShouldResumeTimer = state.timerRunning;
+          state.pauseShouldResumeCountdown = state.countdownActive;
+          state.drawing = false;
+          clearTimerInterval();
+          state.timerRunning = false;
+          clearCountdownInterval();
+          cancelCursorMove();
+          if (pausePopupText) {
+            pausePopupText.textContent = state.countdownActive
+              ? "Countdown paused. Press Esc to resume."
+              : "Timer paused. Press Esc to resume.";
+          }
+          if (pausePopup) {
+            pausePopup.hidden = false;
+            requestAnimationFrame(() => pausePopup.classList.add("is-visible"));
+          }
+          setStatus("Paused. Press Esc to resume.", "idle");
+          updateHud();
+          drawBoard();
+        }
+
+        function resumeCurrentRound() {
+          if (!state.paused) {
+            return;
+          }
+          const resumeCountdown = state.pauseShouldResumeCountdown && state.countdownActive && state.countdownValue > 0;
+          const resumeTimer = state.pauseShouldResumeTimer && state.activeShape && state.timeLeft > 0;
+          hidePausePopup();
+          if (resumeCountdown) {
+            countdownPopup.hidden = false;
+            requestAnimationFrame(() => countdownPopup.classList.add("is-visible"));
+            startCountdownInterval();
+            updateStatusForCurrentState();
+            updateHud();
+            drawBoard();
+            return;
+          }
+          if (resumeTimer) {
+            startTimer();
+          }
+          updateStatusForCurrentState();
+          updateHud();
+          drawBoard();
         }
 
         function renderStatsRows(rows) {
@@ -1718,19 +1880,13 @@ const TICK_MS = 100;
         }
 
         function getBlockErrorCount() {
-          let missing = 0;
           let extra = 0;
-          state.targetSet.forEach((key) => {
-            if (!state.cells.has(key)) {
-              missing += 1;
-            }
-          });
           state.cells.forEach((key) => {
             if (!state.targetSet.has(key)) {
               extra += 1;
             }
           });
-          return missing + extra;
+          return extra;
         }
 
         function getMissingCount() {
@@ -1751,6 +1907,14 @@ const TICK_MS = 100;
 
         function getUltimateCurrentMisses() {
           return state.roundStats.ultimateWrongHighlights || 0;
+        }
+
+        function getUltimateTotalMisses(currentMisses = 0) {
+          return state.sessionStats.ultimateMisses + currentMisses;
+        }
+
+        function getUltimateCompletedMisses() {
+          return state.sessionStats.ultimateMisses;
         }
 
         function rememberUltimateShape(shape) {
@@ -1815,19 +1979,16 @@ const TICK_MS = 100;
         }
 
         function stopTimer() {
-          if (state.timerId) {
-            window.clearInterval(state.timerId);
-          }
-          state.timerId = null;
+          clearTimerInterval();
           state.timerRunning = false;
+          state.pauseShouldResumeTimer = false;
+          state.pauseShouldResumeCountdown = false;
+          hidePausePopup();
           stopCountdown();
         }
 
         function stopCountdown() {
-          if (state.countdownId) {
-            window.clearInterval(state.countdownId);
-          }
-          state.countdownId = null;
+          clearCountdownInterval();
           state.countdownActive = false;
           countdownPopup.classList.remove("is-visible");
           countdownPopup.hidden = true;
@@ -1859,24 +2020,12 @@ const TICK_MS = 100;
         function startRoundCountdown() {
           stopCountdown();
           state.countdownActive = true;
-          let count = 3;
-          setStatus(count + "... Press Space to start.", "warn");
-          countdownNumber.textContent = String(count);
+          state.countdownValue = 3;
+          setStatus(state.countdownValue + "... Press Space to start.", "warn");
+          countdownNumber.textContent = String(state.countdownValue);
           countdownPopup.hidden = false;
           requestAnimationFrame(() => countdownPopup.classList.add("is-visible"));
-          state.countdownId = window.setInterval(() => {
-            count -= 1;
-            if (count >= 1) {
-              setStatus(count + "... Press Space to start.", "warn");
-              countdownNumber.textContent = String(count);
-              return;
-            }
-            stopCountdown();
-            startTimer();
-            if (!state.drawing && !state.statsVisible && state.activeShape) {
-              setStatus("Go! Press Space to start drawing.", "live");
-            }
-          }, 1000);
+          startCountdownInterval();
         }
 
         function populateShapePicker() {
@@ -2023,7 +2172,7 @@ const TICK_MS = 100;
             { label: "Accuracy", value: summary.accuracy + "%" },
             ...(isUltimateMode() ? [
               { label: "Misses", value: String(summary.ultimateMisses || 0) },
-              { label: "Total Misses", value: String(state.sessionStats.ultimateMisses) }
+              { label: "Total Misses", value: String(getUltimateCompletedMisses()) }
             ] : []),
             { label: "Undos", value: String(summary.undos) }
             ,{ label: "Efficiency", value: efficiency + "%" }
@@ -2045,18 +2194,18 @@ const TICK_MS = 100;
             { label: "Pcs/Sec", value: String(pps) },
             { label: "Accuracy", value: accuracy + "%" },
             ...(isUltimateMode() || state.sessionStats.ultimateMisses ? [
-              { label: "Total Misses", value: String(state.sessionStats.ultimateMisses) }
+              { label: "Total Misses", value: String(getUltimateTotalMisses()) }
             ] : []),
             { label: "Undos", value: String(state.sessionStats.undos) }
             ,{ label: "Efficiency", value: efficiency + "%" }
           ];
         }
 
-        function ultimateFailStatsRows(currentMisses) {
-          return [
-            { label: "Current Misses", value: String(currentMisses) },
-            { label: "Total Misses", value: String(state.sessionStats.ultimateMisses + currentMisses) }
-          ];
+        function ultimateFailStatsRows(currentMisses, includeCurrent = true) {
+          const rows = [];
+
+          rows.push({ label: "Total Misses", value: String(getUltimateTotalMisses(currentMisses)) });
+          return rows;
         }
 
         function loadTarget(shape, message, tone) {
@@ -2149,6 +2298,7 @@ const TICK_MS = 100;
           state.roundStats = createRoundStats();
           state.drawing = false;
           state.drawTransition = 0;
+          state.paused = false;
           cancelCursorMove();
           state.statsVisible = false;
           state.finishPopupMode = null;
@@ -2164,7 +2314,7 @@ const TICK_MS = 100;
         }
 
         function beginDrawingHold() {
-          if (state.drawing || !state.activeShape || state.statsVisible) {
+          if (state.paused || state.drawing || !state.activeShape || state.statsVisible) {
             return;
           }
 
@@ -2204,13 +2354,16 @@ const TICK_MS = 100;
           }
 
           if (isUltimateMode()) {
-            const errors = getBlockErrorCount();
+            // Use the roundStats counter for current misses so it matches
+            // what is accumulated into session totals.
+            const errors = getUltimateCurrentMisses();
+            const totalMisses = getUltimateTotalMisses(errors);
             const finishThreshold = Math.max(1, state.targetSet.size - ULTIMATE_MISS_LIMIT);
             if (state.cells.size >= finishThreshold) {
-              handleUltimateFailure(errors);
+              handleUltimateFailure(errors, 'wrong-highlights');
               return;
             }
-            setStatus("Ultimate requires 100% completion and 3 or fewer misplaced blocks. Total misses: " + errors + ".", "warn");
+            setStatus("Ultimate requires 100% completion and 2 or fewer misplaced blocks. Total misses: " + totalMisses + ".", "warn");
             updateHud();
             return;
           }
@@ -2235,18 +2388,31 @@ const TICK_MS = 100;
           return true;
         }
 
-        function handleUltimateFailure(errors) {
+        function handleUltimateFailure(errors, reason) {
           stopTimer();
           cancelCursorMove();
           state.drawing = false;
           state.drawTransition = 0;
+          const currentMisses = errors || 0;
+          // If failure was triggered by repeatedly placing 2 incorrect blocks
+          // (reason === 'wrong-highlights'), only show the total misses row.
+          const includeCurrent = reason !== 'wrong-highlights';
+
+          let failMessage = "Too many misplaced blocks: " + currentMisses + ". Keep it within 2 misplaced blocks.";
+          if (reason === 'time-up') {
+            failMessage = "Time's up with " + currentMisses + " misplaced blocks. Ultimate allows only 2 misplaced blocks.";
+          }
+
           showFinishPopup({
             mode: "fail",
             label: "Ultimate Failed",
-            message: "Too many total misses: " + errors + ". Keep it within 3 misplaced blocks.",
-            stats: ultimateFailStatsRows(errors),
+            message: failMessage,
+            stats: ultimateFailStatsRows(currentMisses, includeCurrent),
             allowActions: true
           });
+
+          // Persist misses from this failed round into the session total
+          state.sessionStats.ultimateMisses = (state.sessionStats.ultimateMisses || 0) + currentMisses;
         }
 
         function handleSuccess() {
@@ -2282,7 +2448,7 @@ const TICK_MS = 100;
               showFinishPopup({
                 mode: "ultimate-offer",
                 label: "Hard Mode Complete!",
-                message: "Pick a Doodle is unlocked. Want the Ultimate Challenge? You can miss up to 3 blocks, with Hard's time limit.",
+                message: "Pick a Doodle is unlocked. Want the Ultimate Challenge? You can miss up to 2 blocks, with Hard's time limit.",
                 stats: roundStatsRows(summary),
                 allowActions: true
               });
@@ -2320,16 +2486,23 @@ const TICK_MS = 100;
           cancelCursorMove();
           state.drawing = false;
           state.drawTransition = 0;
+          // For time-up we want the current misplaced blocks on the board,
+          // not the historical wrong-placement counter.
           const currentMisses = isUltimateMode() ? getBlockErrorCount() : 0;
           const message = isUltimateMode()
-            ? "Time's up with " + currentMisses + " total misses. Ultimate allows only 3 misplaced blocks."
+            ? "Time's up with " + currentMisses + " misplaced blocks. Ultimate allows only 2 misplaced blocks."
             : "Not everyone can be the best.";
-          
+
+          if (isUltimateMode()) {
+            handleUltimateFailure(currentMisses, 'time-up');
+            return;
+          }
+
           showFinishPopup({
             mode: "fail",
-            label: isUltimateMode() ? "Ultimate Failed" : "Game Over",
+            label: "Game Over",
             message,
-            stats: isUltimateMode() ? ultimateFailStatsRows(currentMisses) : [],
+            stats: [],
             allowActions: true
           });
         }
@@ -2414,7 +2587,7 @@ const TICK_MS = 100;
           const nextShape = selectShape();
           loadTarget(
             nextShape,
-            "Ultimate challenge: miss up to 3 blocks. Press Space after the countdown.",
+            "Ultimate challenge: miss up to 2 blocks. Press Space after the countdown.",
             "warn"
           );
         }
@@ -2668,16 +2841,33 @@ const TICK_MS = 100;
             "ArrowRight",
             "Space",
             "KeyQ",
-            "KeyR"
+            "KeyR",
+            "Escape"
           ];
           if (gameplayCodes.includes(code)) {
             event.preventDefault();
+          }
+
+          if (code === "Escape") {
+            if (event.repeat || state.statsVisible) {
+              return;
+            }
+            if (state.paused) {
+              resumeCurrentRound();
+            } else {
+              pauseCurrentRound();
+            }
+            return;
           }
 
           if (state.statsVisible) {
             if (code === "KeyR" && state.finishPopupMode === "final") {
               restartRunFromBeginning();
             }
+            return;
+          }
+
+          if (state.paused) {
             return;
           }
 
@@ -2713,7 +2903,7 @@ const TICK_MS = 100;
         function handleKeyup(event) {
           if (event.code === "Space") {
             event.preventDefault();
-            if (!state.statsVisible) {
+            if (!state.statsVisible && !state.paused) {
               endDrawingHold();
             }
           }
@@ -2725,6 +2915,9 @@ const TICK_MS = 100;
         tabRandom.addEventListener("click", () => setPickMode("random"));
         tabPick.addEventListener("click", () => setPickMode("pick"));
         shapePicker.addEventListener("change", handleShapePick);
+        if (pauseResumeButton) {
+          pauseResumeButton.addEventListener("click", resumeCurrentRound);
+        }
         if (controlsPanel) {
           controlsPanel.addEventListener("keydown", handleControlsPanelKeydown);
         }
