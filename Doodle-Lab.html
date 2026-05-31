@@ -742,7 +742,7 @@
               </select>
               <div class="picker-lock" id="picker-lock" hidden></div>
             </div>
-            <canvas id="board" aria-label="Drawing grid"></canvas>
+            <canvas id="board" aria-label="Drawing grid" tabindex="0"></canvas>
             <div class="countdown-popup" id="countdown-popup" aria-live="assertive" hidden>
               <span class="countdown-label">Get ready</span>
               <div class="countdown-number" id="countdown-number">3</div>
@@ -991,6 +991,27 @@
         const difficultyButtons = Array.from(document.querySelectorAll("[data-difficulty]"));
         const controlPanelButtons = Array.from(document.querySelectorAll(".tips .choice-button"));
         const ctx = canvas.getContext("2d", { alpha: false });
+
+        // GitHub Pages keyboard-focus fix
+        function focusGameCanvas() {
+          if (canvas) {
+            canvas.focus({ preventScroll: true });
+          }
+        }
+
+        window.addEventListener("load", focusGameCanvas);
+        canvas.addEventListener("click", focusGameCanvas);
+        boardShell.addEventListener("click", focusGameCanvas);
+
+        window.addEventListener("keydown", () => {
+          const active = document.activeElement;
+          const tag = active && active.tagName;
+          if (tag === "BUTTON" || tag === "SELECT") {
+            active.blur();
+            focusGameCanvas();
+          }
+        }, true);
+
         const TICK_MS = 100;
         const MAX_LEVEL = 5;
         const ULTIMATE_SPEED_MODE = 6;
