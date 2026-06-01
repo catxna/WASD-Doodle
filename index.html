@@ -828,17 +828,13 @@
         <aside class="tips">
           <h2>Keyboard Controls</h2>
           <p>Draw on the grid to match the ghosted target shape before the timer hits zero.</p>
-          <div class="choice-row" role="group" aria-label="Movement keys">
-            <button class="choice-button is-active" id="controls-wasd" type="button" aria-pressed="true">WASD</button>
-            <button class="choice-button" id="controls-arrows" type="button" aria-pressed="false">Arrows</button>
-          </div>
           <div class="controls">
             <div class="control">
               <div class="key-row">
-                <span class="keycap move-key" style="--i: 0" data-wasd="W" data-arrows="Up">W</span>
-                <span class="keycap move-key" style="--i: 1" data-wasd="A" data-arrows="Left">A</span>
-                <span class="keycap move-key" style="--i: 2" data-wasd="S" data-arrows="Down">S</span>
-                <span class="keycap move-key" style="--i: 3" data-wasd="D" data-arrows="Right">D</span>
+                <span class="keycap move-key" style="--i: 0; display: flex; flex-direction: column; align-items: center; gap: 2px;"><span>W</span><span style="font-weight: normal; font-size: 1.2em; line-height: 1;">&#8593;</span></span>
+                <span class="keycap move-key" style="--i: 1; display: flex; flex-direction: column; align-items: center; gap: 2px;"><span>A</span><span style="font-weight: normal; font-size: 1.2em; line-height: 1;">&#8592;</span></span>
+                <span class="keycap move-key" style="--i: 2; display: flex; flex-direction: column; align-items: center; gap: 2px;"><span>S</span><span style="font-weight: normal; font-size: 1.2em; line-height: 1;">&#8595;</span></span>
+                <span class="keycap move-key" style="--i: 3; display: flex; flex-direction: column; align-items: center; gap: 2px;"><span>D</span><span style="font-weight: normal; font-size: 1.2em; line-height: 1;">&#8594;</span></span>
               </div>
               <span class="control-text">Move the cursor</span>
             </div>
@@ -873,7 +869,7 @@
 
           </div>
           <p class="footer-note">
-            Tip: press Esc anytime to pause, then press Esc again to resume.
+            Tip: press R to reset the current round if you're about to lose!
           </p>
         </aside>
       </section>
@@ -1022,7 +1018,6 @@
         const tabPick = document.getElementById("tab-pick");
         const pickerRow = document.getElementById("picker-row");
         const controlsPanel = document.querySelector(".tips");
-        const controlsWasd = document.getElementById("controls-wasd");
         const volumeSlider = document.getElementById("volume-slider");
         if (volumeSlider) {
           // initialize global volume from slider and update on input
@@ -1031,7 +1026,7 @@
             globalVolume = parseFloat(volumeSlider.value);
           });
         }
-        const controlsArrows = document.getElementById("controls-arrows");
+        // controlsArrows removed: both input schemes are enabled by default
         const moveKeys = Array.from(document.querySelectorAll(".move-key"));
         const difficultyButtons = Array.from(document.querySelectorAll("[data-difficulty]"));
         const controlPanelButtons = Array.from(document.querySelectorAll(".tips .choice-button"));
@@ -1814,13 +1809,9 @@ const TICK_MS = 100;
             if (state.targetSet.has(key)) {
               state.roundStats.correctPlacements += 1;
             } else if (isUltimateMode()) {
-              state.roundStats.ultimateMisses += 1;
               state.roundStats.ultimateWrongHighlights += 1;
-              if (state.roundStats.ultimateWrongHighlights >= ULTIMATE_MISS_LIMIT) {
-                handleUltimateFailure(
-                  state.roundStats.ultimateWrongHighlights,
-                  "wrong-highlights"
-                );
+              if (state.roundStats.ultimateWrongHighlights > ULTIMATE_MISS_LIMIT) {
+                handleUltimateFailure("wrong-highlights");
               }
             }
             return key;
@@ -1879,15 +1870,7 @@ const TICK_MS = 100;
           return mode === 5 ? "Hard" : "Easy";
         }
 
-        function getBlockErrorCount() {
-          let extra = 0;
-          state.cells.forEach((key) => {
-            if (!state.targetSet.has(key)) {
-              extra += 1;
-            }
-          });
-          return extra;
-        }
+
 
         function getMissingCount() {
           let missing = 0;
@@ -1897,24 +1880,8 @@ const TICK_MS = 100;
           return missing;
         }
 
-        function getMisplacedCount() {
-          let extra = 0;
-          state.cells.forEach((key) => {
-            if (!state.targetSet.has(key)) extra += 1;
-          });
-          return extra;
-        }
-
-        function getUltimateCurrentMisses() {
+        function getUltimateTotalMisses() {
           return state.roundStats.ultimateWrongHighlights || 0;
-        }
-
-        function getUltimateTotalMisses(currentMisses = 0) {
-          return state.sessionStats.ultimateMisses + currentMisses;
-        }
-
-        function getUltimateCompletedMisses() {
-          return state.sessionStats.ultimateMisses;
         }
 
         function rememberUltimateShape(shape) {
@@ -2098,14 +2065,8 @@ const TICK_MS = 100;
           if (!MOVEMENT_KEYS[scheme]) {
             return;
           }
+          // Keep the logical scheme for legacy UI
           state.controlScheme = scheme;
-          controlsWasd.classList.toggle("is-active", scheme === "wasd");
-          controlsArrows.classList.toggle("is-active", scheme === "arrows");
-          controlsWasd.setAttribute("aria-pressed", String(scheme === "wasd"));
-          controlsArrows.setAttribute("aria-pressed", String(scheme === "arrows"));
-          moveKeys.forEach((key) => {
-            key.textContent = scheme === "arrows" ? key.dataset.arrows : key.dataset.wasd;
-          });
         }
 
         function releaseControlFocus() {
@@ -2137,7 +2098,8 @@ const TICK_MS = 100;
         }
 
         function getRoundSummary(finishTime) {
-          const ultimateMisses = isUltimateMode() ? getUltimateCurrentMisses() : 0;
+          // For ultimate mode, record number of wrong placements made this round
+          const ultimateMisses = isUltimateMode() ? getUltimateTotalMisses() : 0;
           return {
             time: finishTime,
             undos: state.roundStats.undos,
@@ -2155,7 +2117,6 @@ const TICK_MS = 100;
           state.sessionStats.undos += summary.undos;
           state.sessionStats.placements += summary.placements;
           state.sessionStats.correctPlacements += summary.correctPlacements;
-          state.sessionStats.ultimateMisses += summary.ultimateMisses || 0;
           state.sessionStats.actions += summary.actions;
         }
 
@@ -2171,8 +2132,7 @@ const TICK_MS = 100;
             { label: "Pcs/Sec", value: String(pps) },
             { label: "Accuracy", value: summary.accuracy + "%" },
             ...(isUltimateMode() ? [
-              { label: "Misses", value: String(summary.ultimateMisses || 0) },
-              { label: "Total Misses", value: String(getUltimateCompletedMisses()) }
+              { label: "Total Misses", value: String(summary.ultimateMisses || 0) }
             ] : []),
             { label: "Undos", value: String(summary.undos) }
             ,{ label: "Efficiency", value: efficiency + "%" }
@@ -2193,18 +2153,15 @@ const TICK_MS = 100;
             { label: "APM", value: String(apm) },
             { label: "Pcs/Sec", value: String(pps) },
             { label: "Accuracy", value: accuracy + "%" },
-            ...(isUltimateMode() || state.sessionStats.ultimateMisses ? [
-              { label: "Total Misses", value: String(getUltimateTotalMisses()) }
-            ] : []),
-            { label: "Undos", value: String(state.sessionStats.undos) }
-            ,{ label: "Efficiency", value: efficiency + "%" }
+            { label: "Undos", value: String(state.sessionStats.undos) },
+            { label: "Efficiency", value: efficiency + "%" }
           ];
         }
 
-        function ultimateFailStatsRows(currentMisses, includeCurrent = true) {
+        function ultimateFailStatsRows() {
           const rows = [];
-
-          rows.push({ label: "Total Misses", value: String(getUltimateTotalMisses(currentMisses)) });
+          const totalMisses = getUltimateTotalMisses();
+          rows.push({ label: "Total Misses", value: String(totalMisses) });
           return rows;
         }
 
@@ -2354,13 +2311,10 @@ const TICK_MS = 100;
           }
 
           if (isUltimateMode()) {
-            // Use the roundStats counter for current misses so it matches
-            // what is accumulated into session totals.
-            const errors = getUltimateCurrentMisses();
-            const totalMisses = getUltimateTotalMisses(errors);
+            const totalMisses = getUltimateTotalMisses();
             const finishThreshold = Math.max(1, state.targetSet.size - ULTIMATE_MISS_LIMIT);
-            if (state.cells.size >= finishThreshold) {
-              handleUltimateFailure(errors, 'wrong-highlights');
+            if (state.cells.size >= finishThreshold && totalMisses > ULTIMATE_MISS_LIMIT) {
+              handleUltimateFailure('wrong-highlights');
               return;
             }
             setStatus("Ultimate requires 100% completion and 2 or fewer misplaced blocks. Total misses: " + totalMisses + ".", "warn");
@@ -2374,7 +2328,7 @@ const TICK_MS = 100;
 
         function isMatch() {
           if (isUltimateMode()) {
-            return state.cells.size > 0 && getMissingCount() === 0 && getMisplacedCount() <= ULTIMATE_MISS_LIMIT;
+            return state.cells.size > 0 && getMissingCount() === 0 && getUltimateTotalMisses() <= ULTIMATE_MISS_LIMIT;
           }
 
           if (state.cells.size !== state.targetSet.size) {
@@ -2388,31 +2342,25 @@ const TICK_MS = 100;
           return true;
         }
 
-        function handleUltimateFailure(errors, reason) {
+        function handleUltimateFailure(reason) {
           stopTimer();
           cancelCursorMove();
           state.drawing = false;
           state.drawTransition = 0;
-          const currentMisses = errors || 0;
-          // If failure was triggered by repeatedly placing 2 incorrect blocks
-          // (reason === 'wrong-highlights'), only show the total misses row.
-          const includeCurrent = reason !== 'wrong-highlights';
+          const totalMisses = getUltimateTotalMisses();
 
-          let failMessage = "Too many misplaced blocks: " + currentMisses + ". Keep it within 2 misplaced blocks.";
+          let failMessage = "Too many misplaced blocks: " + totalMisses + ". Keep it within 2 misplaced blocks.";
           if (reason === 'time-up') {
-            failMessage = "Time's up with " + currentMisses + " misplaced blocks. Ultimate allows only 2 misplaced blocks.";
+            failMessage = "Time's up with " + totalMisses + " misplaced blocks. Ultimate allows only 2 misplaced blocks.";
           }
 
           showFinishPopup({
             mode: "fail",
             label: "Ultimate Failed",
             message: failMessage,
-            stats: ultimateFailStatsRows(currentMisses, includeCurrent),
+            stats: ultimateFailStatsRows(),
             allowActions: true
           });
-
-          // Persist misses from this failed round into the session total
-          state.sessionStats.ultimateMisses = (state.sessionStats.ultimateMisses || 0) + currentMisses;
         }
 
         function handleSuccess() {
@@ -2486,22 +2434,16 @@ const TICK_MS = 100;
           cancelCursorMove();
           state.drawing = false;
           state.drawTransition = 0;
-          // For time-up we want the current misplaced blocks on the board,
-          // not the historical wrong-placement counter.
-          const currentMisses = isUltimateMode() ? getBlockErrorCount() : 0;
-          const message = isUltimateMode()
-            ? "Time's up with " + currentMisses + " misplaced blocks. Ultimate allows only 2 misplaced blocks."
-            : "Not everyone can be the best.";
-
+          
           if (isUltimateMode()) {
-            handleUltimateFailure(currentMisses, 'time-up');
+            handleUltimateFailure('time-up');
             return;
           }
 
           showFinishPopup({
             mode: "fail",
             label: "Game Over",
-            message,
+            message: "Not everyone can be the best.",
             stats: [],
             allowActions: true
           });
@@ -2823,8 +2765,10 @@ const TICK_MS = 100;
         drawBoard();
 
         function getMovementDelta(code) {
-          const keyMap = MOVEMENT_KEYS[state.controlScheme];
-          return keyMap ? keyMap[code] : null;
+          // Support both WASD and Arrow keys simultaneously.
+          const wasdMap = MOVEMENT_KEYS.wasd || {};
+          const arrowsMap = MOVEMENT_KEYS.arrows || {};
+          return wasdMap[code] || arrowsMap[code] || null;
         }
 
         function handleKeydown(event) {
@@ -2921,14 +2865,7 @@ const TICK_MS = 100;
         if (controlsPanel) {
           controlsPanel.addEventListener("keydown", handleControlsPanelKeydown);
         }
-        controlsWasd.addEventListener("click", () => {
-          setControlScheme("wasd");
-          releaseControlFocus();
-        });
-        controlsArrows.addEventListener("click", () => {
-          setControlScheme("arrows");
-          releaseControlFocus();
-        });
+        // Control scheme toggles removed: both WASD and Arrow keys active by default.
         restartRunButton.addEventListener("click", restartRunFromBeginning);
         infiniteRunButton.addEventListener("click", continueInfiniteRun);
         if (nextRunButton) {
